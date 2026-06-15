@@ -17,17 +17,23 @@ export default async function Home() {
   return (
     <main className="flex-1">
       {/* Header */}
-      <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
+      <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
-            <p className="text-lg font-semibold tracking-tight">WRMAX</p>
-            <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            <p className="text-base font-semibold tracking-tight sm:text-lg">
+              WRMAX
+            </p>
+            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
               Aprovação de Conteúdos
             </p>
           </div>
           <div className="flex items-center gap-1">
             <ModeToggle />
-            <Button variant="ghost" className="text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground"
+            >
               Sair
             </Button>
           </div>
@@ -35,17 +41,17 @@ export default async function Home() {
       </header>
 
       {/* Saudação */}
-      <section className="mx-auto max-w-5xl px-6 pt-12">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
+      <section className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 sm:pt-12">
+        <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
           Olá, {cliente || "cliente"}
         </h1>
-        <p className="mt-3 text-muted-foreground">
+        <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
           Revise os conteúdos abaixo e aprove ou reprove cada um.
         </p>
       </section>
 
       {/* Board */}
-      <section className="mx-auto max-w-5xl px-6 py-10">
+      <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         <ApprovalBoard cards={cards} />
       </section>
     </main>

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
+import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,8 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(
     cards[0]?.id ?? null
   );
+  // No mobile: alterna entre a lista e o detalhe (padrao drill-in).
+  const [mobileDetail, setMobileDetail] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   // Estado de edicao do corpo (vindo do editor) e do alerta de bloqueio.
@@ -50,12 +53,19 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
     editorApi.current = api;
   }, []);
 
+  function selectCard(id: string) {
+    setGate(null);
+    setSelectedId(id);
+    setMobileDetail(true);
+  }
+
   function doAprovar(card: Card) {
     startTransition(async () => {
       try {
         await aprovarCard(card.id);
         toast.success("Conteúdo aprovado.");
         setSelectedId(null);
+        setMobileDetail(false);
       } catch {
         toast.error("Não foi possível aprovar. Tente novamente.");
       }
@@ -70,6 +80,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
           description: "Marcamos o título com [REPROVADO].",
         });
         setSelectedId(null);
+        setMobileDetail(false);
       } catch {
         toast.error("Não foi possível reprovar. Tente novamente.");
       }
@@ -105,6 +116,26 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
     runGate(selected);
   }
 
+  const acoes = (card: Card) => (
+    <>
+      <Button
+        onClick={() => requestAprovar(card)}
+        disabled={isPending}
+        className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+      >
+        {isPending ? "Enviando…" : "Aprovar"}
+      </Button>
+      <Button
+        onClick={() => requestReprovar(card)}
+        disabled={isPending}
+        variant="outline"
+        className="text-muted-foreground hover:text-destructive"
+      >
+        Reprovar
+      </Button>
+    </>
+  );
+
   if (!cards.length) {
     return (
       <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
@@ -117,10 +148,14 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
   }
 
   return (
-    <div className="grid gap-8 md:grid-cols-[300px_1fr]">
+    <div className="grid gap-4 md:grid-cols-[290px_1fr] md:gap-8">
       {/* Lista de cards */}
-      <aside className="space-y-2">
-        <p className="mb-3 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+      <aside
+        className={`${
+          mobileDetail ? "hidden md:block" : "block"
+        } space-y-2 md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:pr-1`}
+      >
+        <p className="mb-2 px-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
           {cards.length} para aprovar
         </p>
         {cards.map((card) => {
@@ -128,20 +163,19 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
           return (
             <button
               key={card.id}
-              onClick={() => {
-                setGate(null);
-                setSelectedId(card.id);
-              }}
-              className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
+              onClick={() => selectCard(card.id)}
+              className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
                 active
                   ? "border-primary bg-accent"
                   : "bg-card hover:bg-accent"
               }`}
             >
               {card.formato && (
-                <Badge className="mb-1.5">{card.formato}</Badge>
+                <Badge variant="secondary" className="mb-1.5 text-xs">
+                  {card.formato}
+                </Badge>
               )}
-              <p className="text-base font-medium leading-snug">
+              <p className="line-clamp-2 text-sm font-medium leading-snug">
                 {card.titulo}
               </p>
             </button>
@@ -150,65 +184,78 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
       </aside>
 
       {/* Detalhe */}
-      <section>
+      <section
+        className={`${mobileDetail ? "block" : "hidden md:block"} min-w-0`}
+      >
         {!selected ? (
-          <div className="flex h-full min-h-48 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
+          <div className="hidden h-full min-h-48 items-center justify-center rounded-lg border border-dashed text-muted-foreground md:flex">
             Selecione um conteúdo à esquerda.
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-[1fr_220px]">
-            {/* Conteúdo */}
-            <article>
-              <div className="flex flex-wrap items-center gap-2">
-                {selected.formato && <Badge>{selected.formato}</Badge>}
-                {selected.status && (
-                  <Badge variant="outline" className="text-muted-foreground">
-                    {selected.status}
-                  </Badge>
-                )}
-              </div>
-              <h2 className="mt-3 text-2xl font-semibold leading-tight tracking-tight">
-                {selected.titulo}
-              </h2>
-              <Separator className="my-5" />
-              <BodyEditor
-                key={selected.id}
-                pageId={selected.id}
-                blocks={selected.blocks}
-                onDirtyChange={handleDirty}
-                onReady={handleReady}
-              />
-            </article>
+          <>
+            {/* Voltar (so mobile) */}
+            <button
+              onClick={() => setMobileDetail(false)}
+              className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground md:hidden"
+            >
+              <ChevronLeft className="size-4" />
+              Voltar
+            </button>
 
-            {/* Ações (ao lado) */}
-            <aside className="lg:sticky lg:top-6 lg:self-start">
-              <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Sua decisão
-                </p>
-                <Button
-                  onClick={() => requestAprovar(selected)}
-                  disabled={isPending}
-                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-                >
-                  {isPending ? "Enviando…" : "Aprovar"}
-                </Button>
-                <Button
-                  onClick={() => requestReprovar(selected)}
-                  disabled={isPending}
-                  variant="outline"
-                  className="w-full text-muted-foreground hover:text-destructive"
-                >
-                  Reprovar
-                </Button>
-                {dirty && (
-                  <p className="text-xs text-muted-foreground">
-                    Você tem alterações não salvas no conteúdo.
+            <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-6">
+              {/* Conteúdo */}
+              <article className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {selected.formato && <Badge>{selected.formato}</Badge>}
+                  {selected.status && (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      {selected.status}
+                    </Badge>
+                  )}
+                </div>
+                <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+                  {selected.titulo}
+                </h2>
+                <Separator className="my-4 sm:my-5" />
+                <BodyEditor
+                  key={selected.id}
+                  pageId={selected.id}
+                  blocks={selected.blocks}
+                  onDirtyChange={handleDirty}
+                  onReady={handleReady}
+                />
+              </article>
+
+              {/* Ações — painel lateral (desktop) */}
+              <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+                <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Sua decisão
                   </p>
-                )}
+                  <div className="flex flex-col gap-3 [&>button]:w-full">
+                    {acoes(selected)}
+                  </div>
+                  {dirty && (
+                    <p className="text-xs text-muted-foreground">
+                      Você tem alterações não salvas no conteúdo.
+                    </p>
+                  )}
+                </div>
+              </aside>
+            </div>
+
+            {/* Ações — barra fixa (mobile/tablet) */}
+            <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t bg-background/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:-mx-6 sm:px-6 lg:hidden">
+              {dirty && (
+                <p className="mb-2 text-center text-xs text-muted-foreground">
+                  ● Alterações não salvas
+                </p>
+              )}
+              <div className="flex gap-2 [&>button]:flex-1">
+                {acoes(selected)}
               </div>
-            </aside>
-          </div>
+            </div>
+          </>
         )}
       </section>
 
