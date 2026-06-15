@@ -25,6 +25,14 @@ export type CardResumo = {
   status: string | null;
 };
 
+// Lista os valores do select "Cliente" (para o seletor no painel admin).
+export async function getClientesOptions(): Promise<string[]> {
+  const db: any = await notion.databases.retrieve({ database_id: DB });
+  const prop = db.properties?.[PROP_CLIENTE];
+  if (prop?.type !== "select") return [];
+  return prop.select.options.map((o: any) => o.name as string);
+}
+
 // Lista os cards na etapa de aprovacao isolados por cliente (select).
 // `cliente` = valor da opcao do select (fase clientPageId fixo).
 export async function getCardsParaAprovar(cliente: string): Promise<CardResumo[]> {

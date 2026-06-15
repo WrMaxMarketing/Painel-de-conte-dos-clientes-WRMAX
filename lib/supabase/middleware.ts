@@ -32,9 +32,11 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isLogin = request.nextUrl.pathname.startsWith("/login");
+  // /admin tem auth propria (senha de admin), nao usa a sessao de cliente.
+  const isAdminPath = request.nextUrl.pathname.startsWith("/admin");
 
-  // Sem sessao e fora do /login => manda pro login.
-  if (!user && !isLogin) {
+  // Sem sessao e fora do /login e /admin => manda pro login.
+  if (!user && !isLogin && !isAdminPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
