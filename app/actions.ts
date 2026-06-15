@@ -9,7 +9,7 @@ export async function aprovarCard(pageId: string) {
     page_id: pageId,
     properties: { Status: { status: { name: "Conteúdo aprovado" } } },
   });
-  revalidatePath("/dashboard");
+  revalidatePath("/");
 }
 
 export async function reprovarCard(pageId: string) {
@@ -25,5 +25,5 @@ export async function reprovarCard(pageId: string) {
       [tituloProp]: { title: [{ text: { content: `[REPROVADO] ${atual}` } }] },
     },
   });
-  revalidatePath("/dashboard");
+  revalidatePath("/");
 }
