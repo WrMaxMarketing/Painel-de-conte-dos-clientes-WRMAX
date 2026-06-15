@@ -1,15 +1,26 @@
+import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ApprovalBoard } from "@/components/approval-board";
 import { getCardsParaAprovar, getBlocks } from "@/lib/notion";
+import { createClient } from "@/lib/supabase/server";
+import { signOut } from "@/app/login/actions";
 
 // Sempre busca fresco do Notion (nao prerenderiza no build).
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const cliente = process.env.NOTION_CLIENTE_FIXO ?? "";
+  // Exige sessao (o middleware ja protege, mas garantimos aqui tambem).
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
 
-  const resumos = await getCardsParaAprovar(cliente);
+  // O cliente vem do app_metadata, definido pelo admin (o usuario nao altera).
+  const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
+
+  const resumos = cliente ? await getCardsParaAprovar(cliente) : [];
   const cards = await Promise.all(
     resumos.map(async (c) => ({ ...c, blocks: await getBlocks(c.id) }))
   );
@@ -29,13 +40,16 @@ export default async function Home() {
           </div>
           <div className="flex items-center gap-1">
             <ModeToggle />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-            >
-              Sair
-            </Button>
+            <form action={signOut}>
+              <Button
+                type="submit"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+              >
+                Sair
+              </Button>
+            </form>
           </div>
         </div>
       </header>
@@ -52,7 +66,17 @@ export default async function Home() {
 
       {/* Board */}
       <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-        <ApprovalBoard cards={cards} />
+        {cliente ? (
+          <ApprovalBoard cards={cards} />
+        ) : (
+          <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
+            <p className="text-lg font-semibold">Conta sem cliente associado</p>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Sua conta ainda não está vinculada a um cliente. Contate o
+              administrador para concluir a configuração.
+            </p>
+          </div>
+        )}
       </section>
     </main>
   );
