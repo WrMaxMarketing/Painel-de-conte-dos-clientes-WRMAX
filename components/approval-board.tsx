@@ -1,13 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { NotionBlocks } from "@/components/notion-blocks";
 import { aprovarCard, reprovarCard } from "@/app/actions";
 import type { CardResumo } from "@/lib/notion";
+
+// Editor e client-only (BlockNote acessa o DOM) — sem SSR.
+const BodyEditor = dynamic(
+  () => import("@/components/body-editor").then((m) => m.BodyEditor),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="text-sm text-muted-foreground">Carregando editor…</p>
+    ),
+  }
+);
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Card = CardResumo & { blocks: any[] };
@@ -120,7 +131,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
                 {selected.titulo}
               </h2>
               <Separator className="my-5 bg-gold-soft/50" />
-              <NotionBlocks blocks={selected.blocks} />
+              <BodyEditor key={selected.id} pageId={selected.id} blocks={selected.blocks} />
             </article>
 
             {/* Ações (ao lado) */}
