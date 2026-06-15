@@ -4,6 +4,7 @@ import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 import { useCreateBlockNote } from "@blocknote/react";
 import { BlockNoteView } from "@blocknote/mantine";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ export function BodyEditor({
   onDirtyChange?: (dirty: boolean) => void;
   onReady?: (api: EditorApi) => void;
 }) {
+  const { resolvedTheme } = useTheme();
   const initial = useMemo(() => notionToBlockNote(blocks), [blocks]);
   const editor = useCreateBlockNote({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,8 +92,12 @@ export function BodyEditor({
 
   return (
     <div>
-      <div className="overflow-hidden rounded-md border border-gold-soft/60 bg-white py-2">
-        <BlockNoteView editor={editor} theme="light" onChange={recomputeDirty} />
+      <div className="overflow-hidden rounded-md border bg-card py-2">
+        <BlockNoteView
+          editor={editor}
+          theme={resolvedTheme === "dark" ? "dark" : "light"}
+          onChange={recomputeDirty}
+        />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
@@ -112,7 +118,6 @@ export function BodyEditor({
             onClick={save}
             disabled={saving || !dirty}
             variant="outline"
-            className="border-gold text-gold hover:bg-gold hover:text-primary-foreground"
           >
             {saving ? "Salvando…" : "Salvar alterações"}
           </Button>

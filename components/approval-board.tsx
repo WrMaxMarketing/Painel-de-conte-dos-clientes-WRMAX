@@ -107,8 +107,8 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
 
   if (!cards.length) {
     return (
-      <div className="rounded-lg border border-gold-soft/60 bg-cream/40 px-6 py-16 text-center">
-        <p className="font-heading text-2xl text-foreground">Tudo em dia ✦</p>
+      <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
+        <p className="text-2xl font-semibold">Tudo em dia ✦</p>
         <p className="mt-2 text-muted-foreground">
           Nenhum conteúdo aguardando sua aprovação no momento.
         </p>
@@ -134,16 +134,14 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
               }}
               className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                 active
-                  ? "border-gold bg-cream"
-                  : "border-gold-soft/50 bg-white hover:bg-cream/60"
+                  ? "border-primary bg-accent"
+                  : "bg-card hover:bg-accent"
               }`}
             >
               {card.formato && (
-                <Badge className="mb-1.5 bg-gold text-primary-foreground hover:bg-gold">
-                  {card.formato}
-                </Badge>
+                <Badge className="mb-1.5">{card.formato}</Badge>
               )}
-              <p className="font-heading text-lg leading-snug text-foreground">
+              <p className="text-base font-medium leading-snug">
                 {card.titulo}
               </p>
             </button>
@@ -154,7 +152,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
       {/* Detalhe */}
       <section>
         {!selected ? (
-          <div className="flex h-full min-h-48 items-center justify-center rounded-lg border border-dashed border-gold-soft/60 text-muted-foreground">
+          <div className="flex h-full min-h-48 items-center justify-center rounded-lg border border-dashed text-muted-foreground">
             Selecione um conteúdo à esquerda.
           </div>
         ) : (
@@ -162,24 +160,17 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
             {/* Conteúdo */}
             <article>
               <div className="flex flex-wrap items-center gap-2">
-                {selected.formato && (
-                  <Badge className="bg-gold text-primary-foreground hover:bg-gold">
-                    {selected.formato}
-                  </Badge>
-                )}
+                {selected.formato && <Badge>{selected.formato}</Badge>}
                 {selected.status && (
-                  <Badge
-                    variant="outline"
-                    className="border-gold-soft text-muted-foreground"
-                  >
+                  <Badge variant="outline" className="text-muted-foreground">
                     {selected.status}
                   </Badge>
                 )}
               </div>
-              <h2 className="mt-3 font-heading text-3xl leading-tight text-foreground">
+              <h2 className="mt-3 text-2xl font-semibold leading-tight tracking-tight">
                 {selected.titulo}
               </h2>
-              <Separator className="my-5 bg-gold-soft/50" />
+              <Separator className="my-5" />
               <BodyEditor
                 key={selected.id}
                 pageId={selected.id}
@@ -191,14 +182,14 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
 
             {/* Ações (ao lado) */}
             <aside className="lg:sticky lg:top-6 lg:self-start">
-              <div className="space-y-3 rounded-lg border border-gold-soft/60 bg-cream/40 p-4">
+              <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   Sua decisão
                 </p>
                 <Button
                   onClick={() => requestAprovar(selected)}
                   disabled={isPending}
-                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                 >
                   {isPending ? "Enviando…" : "Aprovar"}
                 </Button>
@@ -206,7 +197,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
                   onClick={() => requestReprovar(selected)}
                   disabled={isPending}
                   variant="outline"
-                  className="w-full border-gold-soft text-muted-foreground hover:bg-white hover:text-destructive"
+                  className="w-full text-muted-foreground hover:text-destructive"
                 >
                   Reprovar
                 </Button>
@@ -246,12 +237,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
             >
               Descartar
             </Button>
-            <Button
-              onClick={gateSalvar}
-              className="bg-gold text-primary-foreground hover:bg-gold/90"
-            >
-              Salvar e continuar
-            </Button>
+            <Button onClick={gateSalvar}>Salvar e continuar</Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

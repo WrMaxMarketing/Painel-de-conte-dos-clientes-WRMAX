@@ -23,7 +23,7 @@ function RichText({ value }: { value?: RichTextItem[] }) {
         let node: ReactNode = t.plain_text;
         if (a.code) {
           node = (
-            <code className="rounded bg-cream px-1.5 py-0.5 text-[0.85em] text-gold">
+            <code className="rounded bg-muted px-1.5 py-0.5 text-[0.85em] text-primary">
               {node}
             </code>
           );
@@ -43,7 +43,7 @@ function RichText({ value }: { value?: RichTextItem[] }) {
               href={t.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-gold underline underline-offset-2 hover:opacity-80"
+              className="text-primary underline underline-offset-2 hover:opacity-80"
             >
               {node}
             </a>
@@ -88,13 +88,13 @@ function SingleBlock({ block }: { block: any }) {
       );
     case "quote":
       return (
-        <blockquote className="border-l-2 border-gold pl-4 italic text-foreground/80">
+        <blockquote className="border-l-2 border-border pl-4 italic text-foreground/80">
           <RichText value={data.rich_text} />
         </blockquote>
       );
     case "callout":
       return (
-        <div className="flex gap-2 rounded-md bg-cream p-3 text-foreground/90">
+        <div className="flex gap-2 rounded-md bg-muted p-3 text-foreground/90">
           {data.icon?.emoji && <span aria-hidden>{data.icon.emoji}</span>}
           <span>
             <RichText value={data.rich_text} />
@@ -109,7 +109,7 @@ function SingleBlock({ block }: { block: any }) {
             checked={!!data.checked}
             readOnly
             disabled
-            className="mt-1.5 accent-gold"
+            className="mt-1.5 accent-primary"
           />
           <span className={data.checked ? "line-through opacity-70" : ""}>
             <RichText value={data.rich_text} />
@@ -118,12 +118,12 @@ function SingleBlock({ block }: { block: any }) {
       );
     case "code":
       return (
-        <pre className="overflow-x-auto rounded-md bg-cream p-3 text-sm text-foreground/90">
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-sm text-foreground/90">
           <code>{data.rich_text?.map((t: RichTextItem) => t.plain_text).join("")}</code>
         </pre>
       );
     case "divider":
-      return <Separator className="bg-gold-soft/50" />;
+      return <Separator />;
     case "image": {
       const url = data.type === "external" ? data.external?.url : data.file?.url;
       if (!url) return null;
@@ -132,7 +132,7 @@ function SingleBlock({ block }: { block: any }) {
         <img
           src={url}
           alt={data.caption?.map((t: RichTextItem) => t.plain_text).join("") || ""}
-          className="rounded-md border border-gold-soft/60"
+          className="rounded-md border border-border"
         />
       );
     }
