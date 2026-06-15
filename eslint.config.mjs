@@ -13,6 +13,13 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    // Respostas do Notion sao tipadas dinamicamente como `any` de proposito.
+    // Mantemos como aviso (nao bloqueia o build) em vez de erro.
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 ]);
 
 export default eslintConfig;
