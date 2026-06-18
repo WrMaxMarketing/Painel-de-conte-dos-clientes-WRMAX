@@ -46,6 +46,12 @@ export const BOARD_STATUSES = COLUNAS.map((c) => c.status);
 export const STATUS_EDITAVEL =
   COLUNAS.find((c) => c.modo === "aprovar")?.status ?? "";
 
+// Etapas que disparam notificacao ao cliente (as que exigem acao dele):
+// "Conteúdo para aprovação" e "Concluido Designer/Arte".
+export const STATUS_NOTIFICAVEIS = COLUNAS.filter(
+  (c) => c.modo !== "leitura"
+).map((c) => c.status);
+
 export function modoDoStatus(status: string | null | undefined): ColunaModo {
   return COLUNAS.find((c) => c.status === status)?.modo ?? "leitura";
 }

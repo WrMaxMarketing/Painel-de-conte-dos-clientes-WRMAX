@@ -38,9 +38,11 @@ export async function updateSession(request: NextRequest) {
   const isLogin = request.nextUrl.pathname.startsWith("/login");
   // /admin tem auth propria (senha de admin), nao usa a sessao de cliente.
   const isAdminPath = request.nextUrl.pathname.startsWith("/admin");
+  // /api faz a propria checagem (sessao ou segredo de webhook); nao redireciona.
+  const isApi = request.nextUrl.pathname.startsWith("/api");
 
-  // Sessao com mais de 6h (ou sem o marcador de inicio) => desloga.
-  if (user && !isAdminPath) {
+  // Sessao expirada (ou sem o marcador de inicio) => desloga.
+  if (user && !isAdminPath && !isApi) {
     const startedAtRaw = request.cookies.get(SESSION_START_COOKIE)?.value;
     const startedAt = startedAtRaw ? Number(startedAtRaw) : NaN;
     const expired =
@@ -65,8 +67,8 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // Sem sessao e fora do /login e /admin => manda pro login.
-  if (!user && !isLogin && !isAdminPath) {
+  // Sem sessao e fora do /login, /admin e /api => manda pro login.
+  if (!user && !isLogin && !isAdminPath && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
