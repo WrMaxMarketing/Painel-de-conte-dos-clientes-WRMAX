@@ -1,6 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+// Sessao do cliente expira 20min apos o login (limite absoluto, independente de atividade).
+const SESSION_MAX_AGE_MS = 20 * 60 * 1000;
+const SESSION_START_COOKIE = "client_session_start";
+
 // Refresca a sessao a cada request e protege as rotas: sem usuario => /login.
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -34,9 +38,37 @@ export async function updateSession(request: NextRequest) {
   const isLogin = request.nextUrl.pathname.startsWith("/login");
   // /admin tem auth propria (senha de admin), nao usa a sessao de cliente.
   const isAdminPath = request.nextUrl.pathname.startsWith("/admin");
+  // /api faz a propria checagem (sessao ou segredo de webhook); nao redireciona.
+  const isApi = request.nextUrl.pathname.startsWith("/api");
 
-  // Sem sessao e fora do /login e /admin => manda pro login.
-  if (!user && !isLogin && !isAdminPath) {
+  // Sessao expirada (ou sem o marcador de inicio) => desloga.
+  if (user && !isAdminPath && !isApi) {
+    const startedAtRaw = request.cookies.get(SESSION_START_COOKIE)?.value;
+    const startedAt = startedAtRaw ? Number(startedAtRaw) : NaN;
+    const expired =
+      !startedAtRaw ||
+      Number.isNaN(startedAt) ||
+      Date.now() - startedAt > SESSION_MAX_AGE_MS;
+
+    if (expired) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      const response = NextResponse.redirect(url);
+      // Limpa a sessao do Supabase (cookies sb-*) e o marcador de inicio.
+      for (const cookie of request.cookies.getAll()) {
+        if (
+          cookie.name.startsWith("sb-") ||
+          cookie.name === SESSION_START_COOKIE
+        ) {
+          response.cookies.delete(cookie.name);
+        }
+      }
+      return response;
+    }
+  }
+
+  // Sem sessao e fora do /login, /admin e /api => manda pro login.
+  if (!user && !isLogin && !isAdminPath && !isApi) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

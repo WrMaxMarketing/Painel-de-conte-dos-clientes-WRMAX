@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
 import { ApprovalBoard } from "@/components/approval-board";
-import { getCardsParaAprovar, getBlocks } from "@/lib/notion";
+import { getCardsBoard, getBlocks } from "@/lib/notion";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 
@@ -20,7 +20,7 @@ export default async function Home() {
   // O cliente vem do app_metadata, definido pelo admin (o usuario nao altera).
   const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
 
-  const resumos = cliente ? await getCardsParaAprovar(cliente) : [];
+  const resumos = cliente ? await getCardsBoard(cliente) : [];
   const cards = await Promise.all(
     resumos.map(async (c) => ({ ...c, blocks: await getBlocks(c.id) }))
   );
@@ -60,7 +60,8 @@ export default async function Home() {
           Olá, {cliente || "cliente"}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
-          Revise os conteúdos abaixo e aprove ou reprove cada um.
+          Acompanhe os conteúdos por etapa. Revise e aprove os que estão
+          aguardando você.
         </p>
       </section>
 
