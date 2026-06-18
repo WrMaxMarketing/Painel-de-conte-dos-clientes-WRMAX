@@ -1,13 +1,87 @@
 "use server";
 import { Client } from "@notionhq/client";
 import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { getCardWrite, setArquivos } from "@/lib/notion";
+import { STATUS_EDITAVEL, modoDoStatus } from "@/lib/board";
+import { enviarWhatsApp } from "@/lib/whatsapp";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
+
+// Remove uma midia da propriedade "Files & media". So na etapa editavel e para
+// o cliente dono do card. `index`/`name` identificam o arquivo na lista atual.
+export async function removerArquivo(
+  pageId: string,
+  index: number,
+  name: string
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+  const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
+
+  const card = await getCardWrite(pageId);
+  if (card.cliente !== cliente) throw new Error("Sem permissão.");
+  if (card.status !== STATUS_EDITAVEL) {
+    throw new Error("Esta etapa não permite edição de mídia.");
+  }
+  // Confere que a lista nao mudou desde que o cliente a viu.
+  if (card.files[index]?.name !== name) {
+    throw new Error("A lista de mídias mudou. Recarregue e tente de novo.");
+  }
+
+  await setArquivos(
+    pageId,
+    card.files.filter((_, i) => i !== index)
+  );
+  revalidatePath("/");
+}
 
 export async function aprovarCard(pageId: string) {
   await notion.pages.update({
     page_id: pageId,
     properties: { Status: { status: { name: "Conteúdo aprovado" } } },
+  });
+  revalidatePath("/");
+}
+
+// Solicitacao de alteracao na etapa "Concluido Designer/Arte": notifica a equipe
+// por WhatsApp (Evolution API). So permitido nessa etapa e para o cliente dono.
+export async function solicitarAlteracao(pageId: string, mensagem: string) {
+  const texto = mensagem.trim();
+  if (!texto) throw new Error("Descreva a alteração desejada.");
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Não autenticado.");
+  const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
+
+  const card = await getCardWrite(pageId);
+  if (card.cliente !== cliente) throw new Error("Sem permissão.");
+  if (modoDoStatus(card.status) !== "aprovar-arte") {
+    throw new Error("Esta etapa não permite solicitar alteração.");
+  }
+
+  const corpo = [
+    "🔔 *Solicitação de alteração*",
+    `Cliente: ${cliente || "(sem cliente)"}`,
+    `Conteúdo: ${card.titulo}`,
+    "",
+    texto,
+  ].join("\n");
+
+  await enviarWhatsApp(corpo);
+}
+
+// Aprova a etapa "Concluido Designer/Arte" => move o card para "Para agendar".
+export async function aprovarArteCard(pageId: string) {
+  await notion.pages.update({
+    page_id: pageId,
+    properties: { Status: { status: { name: "Para agendar" } } },
   });
   revalidatePath("/");
 }

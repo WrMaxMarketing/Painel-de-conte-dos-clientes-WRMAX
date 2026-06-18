@@ -20,12 +20,14 @@ export type EditorApi = {
 export function BodyEditor({
   pageId,
   blocks,
+  readOnly = false,
   onDirtyChange,
   onReady,
 }: {
   pageId: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   blocks: any[];
+  readOnly?: boolean;
   onDirtyChange?: (dirty: boolean) => void;
   onReady?: (api: EditorApi) => void;
 }) {
@@ -95,10 +97,12 @@ export function BodyEditor({
       <div className="overflow-hidden rounded-md border bg-card py-2">
         <BlockNoteView
           editor={editor}
+          editable={!readOnly}
           theme={resolvedTheme === "dark" ? "dark" : "light"}
-          onChange={recomputeDirty}
+          onChange={readOnly ? undefined : recomputeDirty}
         />
       </div>
+      {!readOnly && (
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           {dirty ? "● Alterações não salvas." : "Edite o conteúdo e salve antes de aprovar."}
@@ -123,6 +127,7 @@ export function BodyEditor({
           </Button>
         </div>
       </div>
+      )}
     </div>
   );
 }

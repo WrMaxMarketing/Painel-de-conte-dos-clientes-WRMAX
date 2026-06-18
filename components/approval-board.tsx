@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import dynamic from "next/dynamic";
 import { ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
@@ -15,7 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { aprovarCard, reprovarCard } from "@/app/actions";
+import { aprovarCard, aprovarArteCard, reprovarCard } from "@/app/actions";
+import { ActionNotices } from "@/components/action-notices";
+import { MediaGallery } from "@/components/media-gallery";
+import { RequestChange } from "@/components/request-change";
+import { COLUNAS, modoDoStatus, type ColunaModo } from "@/lib/board";
 import type { EditorApi } from "@/components/body-editor";
 import type { CardResumo } from "@/lib/notion";
 
@@ -34,19 +38,31 @@ const BodyEditor = dynamic(
 type Card = CardResumo & { blocks: any[] };
 
 export function ApprovalBoard({ cards }: { cards: Card[] }) {
-  const [selectedId, setSelectedId] = useState<string | null>(
-    cards[0]?.id ?? null
-  );
-  // No mobile: alterna entre a lista e o detalhe (padrao drill-in).
-  const [mobileDetail, setMobileDetail] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   // Estado de edicao do corpo (vindo do editor) e do alerta de bloqueio.
+  // So importa na etapa editavel ("Conteúdo para aprovação").
   const [dirty, setDirty] = useState(false);
   const [gate, setGate] = useState<null | "aprovar" | "reprovar">(null);
   const editorApi = useRef<EditorApi | null>(null);
 
   const selected = cards.find((c) => c.id === selectedId) ?? null;
+  const modo: ColunaModo = selected
+    ? modoDoStatus(selected.status)
+    : "leitura";
+  const editavel = modo === "aprovar";
+
+  // Agrupa os cards por status, na ordem das colunas.
+  const grupos = useMemo(() => {
+    const map = new Map<string, Card[]>();
+    for (const col of COLUNAS) map.set(col.status, []);
+    for (const card of cards) {
+      const lista = map.get(card.status ?? "");
+      if (lista) lista.push(card);
+    }
+    return map;
+  }, [cards]);
 
   const handleDirty = useCallback((d: boolean) => setDirty(d), []);
   const handleReady = useCallback((api: EditorApi) => {
@@ -55,17 +71,26 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
 
   function selectCard(id: string) {
     setGate(null);
+    setDirty(false);
     setSelectedId(id);
-    setMobileDetail(true);
+  }
+
+  function voltar() {
+    setGate(null);
+    setSelectedId(null);
   }
 
   function doAprovar(card: Card) {
+    const acaoModo = modoDoStatus(card.status);
     startTransition(async () => {
       try {
-        await aprovarCard(card.id);
+        if (acaoModo === "aprovar-arte") {
+          await aprovarArteCard(card.id);
+        } else {
+          await aprovarCard(card.id);
+        }
         toast.success("Conteúdo aprovado.");
-        setSelectedId(null);
-        setMobileDetail(false);
+        voltar();
       } catch {
         toast.error("Não foi possível aprovar. Tente novamente.");
       }
@@ -79,21 +104,20 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
         toast("Conteúdo reprovado.", {
           description: "Marcamos o título com [REPROVADO].",
         });
-        setSelectedId(null);
-        setMobileDetail(false);
+        voltar();
       } catch {
         toast.error("Não foi possível reprovar. Tente novamente.");
       }
     });
   }
 
-  // Aprovar/Reprovar so prosseguem se nao houver alteracoes pendentes.
+  // Na etapa editavel, aprovar/reprovar so prosseguem sem alteracoes pendentes.
   function requestAprovar(card: Card) {
-    if (dirty) return setGate("aprovar");
+    if (editavel && dirty) return setGate("aprovar");
     doAprovar(card);
   }
   function requestReprovar(card: Card) {
-    if (dirty) return setGate("reprovar");
+    if (editavel && dirty) return setGate("reprovar");
     doReprovar(card);
   }
 
@@ -116,178 +140,208 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
     runGate(selected);
   }
 
-  const acoes = (card: Card) => (
-    <>
-      <Button
-        onClick={() => requestAprovar(card)}
-        disabled={isPending}
-        className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-      >
-        {isPending ? "Enviando…" : "Aprovar"}
-      </Button>
-      <Button
-        onClick={() => requestReprovar(card)}
-        disabled={isPending}
-        variant="outline"
-        className="text-muted-foreground hover:text-destructive"
-      >
-        Reprovar
-      </Button>
-    </>
-  );
+  // Botoes de acao conforme o modo da etapa.
+  const acoes = (card: Card) => {
+    if (modo === "leitura") return null;
+    const aprovarLabel = modo === "aprovar-arte" ? "Aprovo Publicação" : "Aprovar";
+    return (
+      <>
+        <Button
+          onClick={() => requestAprovar(card)}
+          disabled={isPending}
+          className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+        >
+          {isPending ? "Enviando…" : aprovarLabel}
+        </Button>
+        {modo === "aprovar" && (
+          <Button
+            onClick={() => requestReprovar(card)}
+            disabled={isPending}
+            variant="outline"
+            className="text-muted-foreground hover:text-destructive"
+          >
+            Reprovar
+          </Button>
+        )}
+      </>
+    );
+  };
 
   if (!cards.length) {
     return (
       <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
         <p className="text-2xl font-semibold">Tudo em dia ✦</p>
         <p className="mt-2 text-muted-foreground">
-          Nenhum conteúdo aguardando sua aprovação no momento.
+          Nenhum conteúdo na sua esteira no momento.
         </p>
       </div>
     );
   }
 
-  return (
-    <div className="grid gap-4 md:grid-cols-[290px_1fr] md:gap-8">
-      {/* Lista de cards */}
-      <aside
-        className={`${
-          mobileDetail ? "hidden md:block" : "block"
-        } space-y-2 md:sticky md:top-20 md:max-h-[calc(100dvh-6rem)] md:self-start md:overflow-y-auto md:pr-1`}
-      >
-        <p className="mb-2 px-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-          {cards.length} para aprovar
-        </p>
-        {cards.map((card) => {
-          const active = card.id === selectedId;
-          return (
-            <button
-              key={card.id}
-              onClick={() => selectCard(card.id)}
-              className={`w-full rounded-lg border px-3 py-2.5 text-left transition-colors ${
-                active
-                  ? "border-primary bg-accent"
-                  : "bg-card hover:bg-accent"
-              }`}
-            >
-              {card.formato && (
-                <Badge variant="secondary" className="mb-1.5 text-xs">
-                  {card.formato}
+  // --- DETALHE (substitui o board ao selecionar um card) ---
+  if (selected) {
+    return (
+      <div className="min-w-0">
+        <button
+          onClick={voltar}
+          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="size-4" />
+          Voltar para o quadro
+        </button>
+
+        {modo !== "leitura" && (
+          <div className="mb-4">
+            <ActionNotices modo={modo} />
+          </div>
+        )}
+
+        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-6">
+          {/* Conteúdo */}
+          <article className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              {selected.formato && <Badge>{selected.formato}</Badge>}
+              {selected.status && (
+                <Badge variant="outline" className="text-muted-foreground">
+                  {selected.status}
                 </Badge>
               )}
-              <p className="line-clamp-2 text-sm font-medium leading-snug">
-                {card.titulo}
-              </p>
-            </button>
-          );
-        })}
-      </aside>
-
-      {/* Detalhe */}
-      <section
-        className={`${mobileDetail ? "block" : "hidden md:block"} min-w-0`}
-      >
-        {!selected ? (
-          <div className="hidden h-full min-h-48 items-center justify-center rounded-lg border border-dashed text-muted-foreground md:flex">
-            Selecione um conteúdo à esquerda.
-          </div>
-        ) : (
-          <>
-            {/* Voltar (so mobile) */}
-            <button
-              onClick={() => setMobileDetail(false)}
-              className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground md:hidden"
-            >
-              <ChevronLeft className="size-4" />
-              Voltar
-            </button>
-
-            <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-6">
-              {/* Conteúdo */}
-              <article className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  {selected.formato && <Badge>{selected.formato}</Badge>}
-                  {selected.status && (
-                    <Badge variant="outline" className="text-muted-foreground">
-                      {selected.status}
-                    </Badge>
-                  )}
-                </div>
-                <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-                  {selected.titulo}
-                </h2>
-                <Separator className="my-4 sm:my-5" />
-                <BodyEditor
-                  key={selected.id}
-                  pageId={selected.id}
-                  blocks={selected.blocks}
-                  onDirtyChange={handleDirty}
-                  onReady={handleReady}
-                />
-              </article>
-
-              {/* Ações — painel lateral (desktop) */}
-              <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
-                <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                    Sua decisão
-                  </p>
-                  <div className="flex flex-col gap-3 [&>button]:w-full">
-                    {acoes(selected)}
-                  </div>
-                  {dirty && (
-                    <p className="text-xs text-muted-foreground">
-                      Você tem alterações não salvas no conteúdo.
-                    </p>
-                  )}
-                </div>
-              </aside>
             </div>
+            <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+              {selected.titulo}
+            </h2>
 
-            {/* Ações — barra fixa (mobile/tablet) */}
-            <div className="sticky bottom-0 z-10 -mx-4 mt-6 border-t bg-background/90 px-4 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/75 sm:-mx-6 sm:px-6 lg:hidden">
-              {dirty && (
-                <p className="mb-2 text-center text-xs text-muted-foreground">
-                  ● Alterações não salvas
+            {(selected.arquivos.length > 0 || editavel) && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Mídias
                 </p>
-              )}
-              <div className="flex gap-2 [&>button]:flex-1">
-                {acoes(selected)}
+                <MediaGallery
+                  arquivos={selected.arquivos}
+                  editable={editavel}
+                  pageId={selected.id}
+                />
               </div>
-            </div>
-          </>
-        )}
-      </section>
+            )}
 
-      {/* Alerta: bloqueia aprovar/reprovar com alteracoes pendentes */}
-      <AlertDialog open={gate !== null} onOpenChange={(o) => !o && setGate(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Alterações não salvas</AlertDialogTitle>
-            <AlertDialogDescription>
-              Você editou o conteúdo e ainda não salvou. Salve as alterações ou
-              descarte-as antes de {gate === "reprovar" ? "reprovar" : "aprovar"}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button
-              variant="ghost"
-              onClick={() => setGate(null)}
-              className="text-muted-foreground"
-            >
-              Cancelar
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={gateDescartar}
-              className="text-muted-foreground hover:text-destructive"
-            >
-              Descartar
-            </Button>
-            <Button onClick={gateSalvar}>Salvar e continuar</Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            <Separator className="my-4 sm:my-5" />
+            <BodyEditor
+              key={selected.id}
+              pageId={selected.id}
+              blocks={selected.blocks}
+              readOnly={!editavel}
+              onDirtyChange={editavel ? handleDirty : undefined}
+              onReady={editavel ? handleReady : undefined}
+            />
+
+            {modo === "aprovar-arte" && (
+              <div className="mt-6">
+                <RequestChange pageId={selected.id} />
+              </div>
+            )}
+          </article>
+
+          {/* Ações — painel lateral (desktop) */}
+          {modo !== "leitura" && (
+            <aside className="mt-6 lg:mt-0 lg:sticky lg:top-20 lg:block lg:self-start">
+              <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
+                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  Sua decisão
+                </p>
+                <div className="flex flex-col gap-3 [&>button]:w-full">
+                  {acoes(selected)}
+                </div>
+                {editavel && dirty && (
+                  <p className="text-xs text-muted-foreground">
+                    Você tem alterações não salvas no conteúdo.
+                  </p>
+                )}
+              </div>
+            </aside>
+          )}
+        </div>
+
+        {/* Alerta: bloqueia aprovar/reprovar com alteracoes pendentes */}
+        <AlertDialog
+          open={gate !== null}
+          onOpenChange={(o) => !o && setGate(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Alterações não salvas</AlertDialogTitle>
+              <AlertDialogDescription>
+                Você editou o conteúdo e ainda não salvou. Salve as alterações
+                ou descarte-as antes de{" "}
+                {gate === "reprovar" ? "reprovar" : "aprovar"}.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <Button
+                variant="ghost"
+                onClick={() => setGate(null)}
+                className="text-muted-foreground"
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={gateDescartar}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                Descartar
+              </Button>
+              <Button onClick={gateSalvar}>Salvar e continuar</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    );
+  }
+
+  // --- QUADRO (kanban) ---
+  // Desktop: 4 colunas em grid (todas visiveis, sem scroll horizontal).
+  // Mobile: colunas empilhadas; os cards de cada etapa rolam na horizontal.
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+      {COLUNAS.map((col) => {
+        const lista = grupos.get(col.status) ?? [];
+        return (
+          <div key={col.status} className="flex flex-col">
+            <div className="mb-2 flex min-h-[2.75rem] items-start justify-between gap-2 px-1">
+              <p className="text-xs font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+                {col.label}
+              </p>
+              <Badge variant="secondary" className="shrink-0 text-xs">
+                {lista.length}
+              </Badge>
+            </div>
+            <div className="flex flex-1 gap-2 overflow-x-auto rounded-lg border bg-muted/30 p-2 md:flex-col md:overflow-visible">
+              {lista.length === 0 ? (
+                <p className="w-full px-1 py-6 text-center text-xs text-muted-foreground">
+                  Nenhum conteúdo
+                </p>
+              ) : (
+                lista.map((card) => (
+                  <button
+                    key={card.id}
+                    onClick={() => selectCard(card.id)}
+                    className="w-[220px] shrink-0 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent md:w-full md:shrink"
+                  >
+                    {card.formato && (
+                      <Badge variant="secondary" className="mb-1.5 text-xs">
+                        {card.formato}
+                      </Badge>
+                    )}
+                    <p className="line-clamp-3 text-sm font-medium leading-snug">
+                      {card.titulo}
+                    </p>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
