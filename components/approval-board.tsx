@@ -37,6 +37,20 @@ const BodyEditor = dynamic(
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Card = CardResumo & { blocks: any[] };
 
+// O badge "Alteração solicitada" vale 24h a partir do pedido do cliente.
+const VINTE_QUATRO_H = 24 * 60 * 60 * 1000;
+function alteracaoRecente(iso: string | null): boolean {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && Date.now() - t < VINTE_QUATRO_H;
+}
+
+// Badge laranja (permanente) com o Nº de Ajustes: aparece em todas as etapas
+// menos a primeira ("Conteúdo para aprovar", modo "aprovar"), quando ha ajustes.
+function mostraAjustes(card: Card): boolean {
+  return card.ajustes > 0 && modoDoStatus(card.status) !== "aprovar";
+}
+
 export function ApprovalBoard({ cards }: { cards: Card[] }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -206,6 +220,23 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
                   {selected.status}
                 </Badge>
               )}
+              {alteracaoRecente(selected.solicitacaoEm) && (
+                <Badge
+                  variant="outline"
+                  className="border-amber-500/50 bg-amber-500/15 font-semibold text-amber-700 dark:text-amber-400"
+                >
+                  Alteração solicitada
+                </Badge>
+              )}
+              {mostraAjustes(selected) && (
+                <Badge
+                  variant="outline"
+                  className="border-orange-500/60 bg-orange-500/15 font-semibold text-orange-700 dark:text-orange-400"
+                >
+                  {selected.ajustes}{" "}
+                  {selected.ajustes === 1 ? "ajuste" : "ajustes"}
+                </Badge>
+              )}
             </div>
             <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
               {selected.titulo}
@@ -236,7 +267,11 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
 
             {modo === "aprovar-arte" && (
               <div className="mt-6">
-                <RequestChange pageId={selected.id} />
+                <RequestChange
+                  pageId={selected.id}
+                  ajustes={selected.ajustes}
+                  onDone={voltar}
+                />
               </div>
             )}
           </article>
@@ -327,11 +362,30 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
                     onClick={() => selectCard(card.id)}
                     className="w-[220px] shrink-0 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent md:w-full md:shrink"
                   >
-                    {card.formato && (
-                      <Badge variant="secondary" className="mb-1.5 text-xs">
-                        {card.formato}
-                      </Badge>
-                    )}
+                    <div className="mb-1.5 flex flex-wrap gap-1.5">
+                      {alteracaoRecente(card.solicitacaoEm) && (
+                        <Badge
+                          variant="outline"
+                          className="border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                        >
+                          Alteração solicitada
+                        </Badge>
+                      )}
+                      {card.formato && (
+                        <Badge variant="secondary" className="text-xs">
+                          {card.formato}
+                        </Badge>
+                      )}
+                      {mostraAjustes(card) && (
+                        <Badge
+                          variant="outline"
+                          className="border-orange-500/60 bg-orange-500/15 text-xs font-semibold text-orange-700 dark:text-orange-400"
+                        >
+                          {card.ajustes}{" "}
+                          {card.ajustes === 1 ? "ajuste" : "ajustes"}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="line-clamp-3 text-sm font-medium leading-snug">
                       {card.titulo}
                     </p>

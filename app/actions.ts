@@ -2,7 +2,11 @@
 import { Client } from "@notionhq/client";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { getCardWrite, setArquivos } from "@/lib/notion";
+import {
+  getCardWrite,
+  setArquivos,
+  registrarSolicitacaoAlteracao,
+} from "@/lib/notion";
 import { STATUS_EDITAVEL, modoDoStatus } from "@/lib/board";
 import { enviarWhatsApp } from "@/lib/whatsapp";
 
@@ -75,6 +79,16 @@ export async function solicitarAlteracao(pageId: string, mensagem: string) {
   ].join("\n");
 
   await enviarWhatsApp(corpo);
+
+  // Registra (Nº de Ajustes +1 + data da solicitacao) e devolve o card 1 etapa,
+  // para "Conteúdo aprovado". A data alimenta o badge de 24h no quadro.
+  await registrarSolicitacaoAlteracao(
+    pageId,
+    card.ajustes,
+    new Date().toISOString()
+  );
+
+  revalidatePath("/");
 }
 
 // Aprova a etapa "Concluido Designer/Arte" => move o card para "Para agendar".

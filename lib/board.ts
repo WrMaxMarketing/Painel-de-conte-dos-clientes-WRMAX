@@ -20,22 +20,22 @@ export type Coluna = {
 export const COLUNAS: Coluna[] = [
   {
     status: "Conteúdo para aprovação",
-    label: "Conteúdo para aprovação",
+    label: "Conteúdo para aprovar",
     modo: "aprovar",
   },
   {
     status: "Conteúdo aprovado",
-    label: "Conteúdo aprovado",
+    label: "Conteúdo aprovado pelo cliente",
     modo: "leitura",
   },
   {
     status: "Concluido Designer/Arte",
-    label: "Concluído Designer/Arte",
+    label: "Edição/arte finalizada",
     modo: "aprovar-arte",
   },
   {
     status: "Para agendar",
-    label: "Para agendar",
+    label: "Para publicar",
     modo: "leitura",
   },
 ];
