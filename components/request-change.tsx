@@ -7,9 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { solicitarAlteracao } from "@/app/actions";
 
-// Campo de "solicitar alteração" exibido na etapa "Concluído Designer/Arte".
-// Ao enviar, notifica a equipe por WhatsApp (Evolution API).
-export function RequestChange({ pageId }: { pageId: string }) {
+// Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
+// Ao enviar: notifica a equipe por WhatsApp, registra a alteração (Nº de Ajustes
+// +1) e devolve o card para "Conteúdo aprovado pelo cliente".
+export function RequestChange({
+  pageId,
+  ajustes,
+  onDone,
+}: {
+  pageId: string;
+  ajustes: number;
+  onDone?: () => void;
+}) {
   const [texto, setTexto] = useState("");
   const [enviando, startTransition] = useTransition();
 
@@ -24,6 +33,7 @@ export function RequestChange({ pageId }: { pageId: string }) {
         await solicitarAlteracao(pageId, msg);
         toast.success("Solicitação enviada à equipe.");
         setTexto("");
+        onDone?.();
       } catch (err) {
         toast.error(
           err instanceof Error ? err.message : "Não foi possível enviar."
@@ -49,6 +59,16 @@ export function RequestChange({ pageId }: { pageId: string }) {
           adicionais serão cobradas como taxa extra.
         </span>
       </div>
+
+      {ajustes > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Você já solicitou{" "}
+          <strong className="text-foreground">
+            {ajustes} {ajustes === 1 ? "alteração" : "alterações"}
+          </strong>{" "}
+          neste conteúdo.
+        </p>
+      )}
 
       <Textarea
         value={texto}
