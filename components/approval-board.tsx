@@ -19,7 +19,7 @@ import { aprovarCard, aprovarArteCard, reprovarCard } from "@/app/actions";
 import { ActionNotices } from "@/components/action-notices";
 import { MediaGallery } from "@/components/media-gallery";
 import { RequestChange } from "@/components/request-change";
-import { COLUNAS, modoDoStatus, type ColunaModo } from "@/lib/board";
+import { COLUNAS, midiaDoStatus, modoDoStatus, type ColunaModo } from "@/lib/board";
 import type { EditorApi } from "@/components/body-editor";
 import type { CardResumo } from "@/lib/notion";
 
@@ -242,18 +242,28 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
               {selected.titulo}
             </h2>
 
-            {(selected.arquivos.length > 0 || editavel) && (
-              <div className="mt-4">
-                <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Mídias
-                </p>
-                <MediaGallery
-                  arquivos={selected.arquivos}
-                  editable={editavel}
-                  pageId={selected.id}
-                />
-              </div>
-            )}
+            {(() => {
+              // A fonte da galeria depende da etapa (lib/board.ts):
+              //   "cru"     => "Files & media" (Conteúdo para aprovar/aprovado)
+              //   "editado" => "ARQUIVO EDITADO PRONTO" (Edição finalizada/Para publicar)
+              const midias =
+                midiaDoStatus(selected.status) === "editado"
+                  ? selected.arquivosEditados
+                  : selected.arquivos;
+              if (midias.length === 0 && !editavel) return null;
+              return (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Mídias
+                  </p>
+                  <MediaGallery
+                    arquivos={midias}
+                    editable={editavel}
+                    pageId={selected.id}
+                  />
+                </div>
+              );
+            })()}
 
             <Separator className="my-4 sm:my-5" />
             <BodyEditor

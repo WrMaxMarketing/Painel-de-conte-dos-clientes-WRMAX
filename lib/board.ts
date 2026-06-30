@@ -11,10 +11,16 @@
 
 export type ColunaModo = "aprovar" | "aprovar-arte" | "leitura";
 
+// Qual propriedade de arquivos do Notion alimenta a galeria de midias da etapa:
+//   "cru"     => "Files & media" (arquivos crus)
+//   "editado" => "ARQUIVO EDITADO PRONTO" (arte/edicao finalizada, incl. videos)
+export type ColunaMidia = "cru" | "editado";
+
 export type Coluna = {
   status: string;
   label: string;
   modo: ColunaModo;
+  midia: ColunaMidia;
 };
 
 export const COLUNAS: Coluna[] = [
@@ -22,21 +28,25 @@ export const COLUNAS: Coluna[] = [
     status: "Conteúdo para aprovação",
     label: "Conteúdo para aprovar",
     modo: "aprovar",
+    midia: "cru",
   },
   {
     status: "Conteúdo aprovado",
     label: "Conteúdo aprovado pelo cliente",
     modo: "leitura",
+    midia: "cru",
   },
   {
     status: "Concluido Designer/Arte",
     label: "Edição/arte finalizada",
     modo: "aprovar-arte",
+    midia: "editado",
   },
   {
     status: "Para agendar",
     label: "Para publicar",
     modo: "leitura",
+    midia: "editado",
   },
 ];
 
@@ -54,4 +64,9 @@ export const STATUS_NOTIFICAVEIS = COLUNAS.filter(
 
 export function modoDoStatus(status: string | null | undefined): ColunaModo {
   return COLUNAS.find((c) => c.status === status)?.modo ?? "leitura";
+}
+
+// Qual fonte de midia a etapa usa (default "cru" para status fora do board).
+export function midiaDoStatus(status: string | null | undefined): ColunaMidia {
+  return COLUNAS.find((c) => c.status === status)?.midia ?? "cru";
 }

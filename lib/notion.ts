@@ -10,6 +10,7 @@ const PROP_STATUS = "Status";
 const PROP_CLIENTE = "Cliente"; // tipo: select
 const PROP_FORMATO = "Formato do conteúdo"; // tipo: status
 const PROP_FILES = "Files & media"; // tipo: files (fotos/videos/anexos)
+const PROP_FILES_EDITADO = "ARQUIVO EDITADO PRONTO"; // tipo: files — arte/edicao finalizada (etapa "Concluido Designer/Arte")
 const PROP_AJUSTES = "🔁 Nº de Ajustes"; // tipo: number — contagem de alteracoes
 const PROP_SOLICITACAO = "Solicitação de alteração"; // tipo: date — quando foi pedida (badge de 24h)
 
@@ -36,10 +37,10 @@ function kindFromName(name: string): MediaKind {
   return "other";
 }
 
-// Extrai os arquivos da propriedade "Files & media". As URLs de arquivos
+// Extrai os arquivos de uma propriedade do tipo "files". As URLs de arquivos
 // hospedados no Notion expiram em ~1h — por isso a pagina e force-dynamic.
-function getArquivos(props: any): MediaFile[] {
-  const prop = props?.[PROP_FILES];
+function getArquivos(props: any, propName: string = PROP_FILES): MediaFile[] {
+  const prop = props?.[propName];
   if (prop?.type !== "files") return [];
   return (prop.files ?? [])
     .map((f: any) => {
@@ -56,6 +57,9 @@ export type CardResumo = {
   formato: string | null;
   status: string | null;
   arquivos: MediaFile[];
+  // Arte/edicao finalizada (propriedade "ARQUIVO EDITADO PRONTO"), exibida na
+  // etapa "Concluido Designer/Arte" — onde costumam ficar os videos prontos.
+  arquivosEditados: MediaFile[];
   // Nº de alteracoes solicitadas e quando a ultima foi pedida (ISO) — usados
   // pelo badge "Alteração solicitada" (vale 24h) no quadro.
   ajustes: number;
@@ -102,6 +106,7 @@ export async function getCardsBoard(cliente: string): Promise<CardResumo[]> {
     formato: page.properties[PROP_FORMATO]?.status?.name ?? null,
     status: page.properties[PROP_STATUS]?.status?.name ?? null,
     arquivos: getArquivos(page.properties),
+    arquivosEditados: getArquivos(page.properties, PROP_FILES_EDITADO),
     ajustes: getAjustes(page.properties),
     solicitacaoEm: getSolicitacaoEm(page.properties),
   }));
@@ -115,6 +120,7 @@ export async function getCard(pageId: string): Promise<CardResumo> {
     formato: page.properties[PROP_FORMATO]?.status?.name ?? null,
     status: page.properties[PROP_STATUS]?.status?.name ?? null,
     arquivos: getArquivos(page.properties),
+    arquivosEditados: getArquivos(page.properties, PROP_FILES_EDITADO),
     ajustes: getAjustes(page.properties),
     solicitacaoEm: getSolicitacaoEm(page.properties),
   };
