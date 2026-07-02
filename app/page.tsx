@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
@@ -5,6 +6,7 @@ import { ApprovalBoard } from "@/components/approval-board";
 import { getCardsBoard, getBlocks } from "@/lib/notion";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
+import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
 
 // Sempre busca fresco do Notion (nao prerenderiza no build).
 export const dynamic = "force-dynamic";
@@ -16,6 +18,15 @@ export default async function Home() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Horario em que a sessao de 1h expira, derivado do cookie de inicio. O board
+  // usa isso para avisar o cliente e deslogar no instante exato do fim da janela.
+  const cookieStore = await cookies();
+  const startedAtRaw = cookieStore.get(SESSION_START_COOKIE)?.value;
+  const startedAt = startedAtRaw ? Number(startedAtRaw) : NaN;
+  const sessionExpiresAt = Number.isFinite(startedAt)
+    ? startedAt + SESSION_MAX_AGE_MS
+    : null;
 
   // O cliente vem do app_metadata, definido pelo admin (o usuario nao altera).
   const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
@@ -68,7 +79,7 @@ export default async function Home() {
       {/* Board */}
       <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         {cliente ? (
-          <ApprovalBoard cards={cards} />
+          <ApprovalBoard cards={cards} sessionExpiresAt={sessionExpiresAt} />
         ) : (
           <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
             <p className="text-lg font-semibold">Conta sem cliente associado</p>

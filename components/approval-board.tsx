@@ -19,6 +19,8 @@ import { aprovarCard, aprovarArteCard, reprovarCard } from "@/app/actions";
 import { ActionNotices } from "@/components/action-notices";
 import { MediaGallery } from "@/components/media-gallery";
 import { RequestChange } from "@/components/request-change";
+import { VerAjustes } from "@/components/ver-ajustes";
+import { SessionExpiryGuard } from "@/components/session-expiry-guard";
 import { COLUNAS, midiaDoStatus, modoDoStatus, type ColunaModo } from "@/lib/board";
 import type { EditorApi } from "@/components/body-editor";
 import type { CardResumo } from "@/lib/notion";
@@ -51,7 +53,14 @@ function mostraAjustes(card: Card): boolean {
   return card.ajustes > 0 && modoDoStatus(card.status) !== "aprovar";
 }
 
-export function ApprovalBoard({ cards }: { cards: Card[] }) {
+export function ApprovalBoard({
+  cards,
+  sessionExpiresAt = null,
+}: {
+  cards: Card[];
+  // Timestamp (ms) em que a sessao de 1h expira; null se desconhecido.
+  sessionExpiresAt?: number | null;
+}) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -60,6 +69,9 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
   const [dirty, setDirty] = useState(false);
   const [gate, setGate] = useState<null | "aprovar" | "reprovar">(null);
   const editorApi = useRef<EditorApi | null>(null);
+  // Espelho do `dirty` em ref: o timer de expiracao le o valor atual sem
+  // depender do closure do render em que foi agendado.
+  const dirtyRef = useRef(false);
 
   const selected = cards.find((c) => c.id === selectedId) ?? null;
   const modo: ColunaModo = selected
@@ -78,14 +90,32 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
     return map;
   }, [cards]);
 
-  const handleDirty = useCallback((d: boolean) => setDirty(d), []);
+  const handleDirty = useCallback((d: boolean) => {
+    dirtyRef.current = d;
+    setDirty(d);
+  }, []);
   const handleReady = useCallback((api: EditorApi) => {
     editorApi.current = api;
+  }, []);
+
+  // Ao expirar a sessao com a tela aberta, o popup pergunta ao cliente o que
+  // fazer com uma edicao em aberto (salvar/descartar) antes do logout.
+  const sessionHasPendingEdits = useCallback(
+    () => !!editorApi.current && dirtyRef.current,
+    []
+  );
+  const sessionSave = useCallback(
+    async () => (await editorApi.current?.save()) ?? false,
+    []
+  );
+  const sessionDiscard = useCallback(() => {
+    editorApi.current?.discard();
   }, []);
 
   function selectCard(id: string) {
     setGate(null);
     setDirty(false);
+    dirtyRef.current = false;
     setSelectedId(id);
   }
 
@@ -183,18 +213,27 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
 
   if (!cards.length) {
     return (
-      <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
-        <p className="text-2xl font-semibold">Tudo em dia ✦</p>
-        <p className="mt-2 text-muted-foreground">
-          Nenhum conteúdo na sua esteira no momento.
-        </p>
-      </div>
+      <>
+        <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
+          <p className="text-2xl font-semibold">Tudo em dia ✦</p>
+          <p className="mt-2 text-muted-foreground">
+            Nenhum conteúdo na sua esteira no momento.
+          </p>
+        </div>
+        <SessionExpiryGuard
+          expiresAt={sessionExpiresAt}
+          hasPendingEdits={sessionHasPendingEdits}
+          onSave={sessionSave}
+          onDiscard={sessionDiscard}
+        />
+      </>
     );
   }
 
   // --- DETALHE (substitui o board ao selecionar um card) ---
   if (selected) {
     return (
+      <>
       <div className="min-w-0">
         <button
           onClick={voltar}
@@ -241,6 +280,13 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
             <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
               {selected.titulo}
             </h2>
+
+            {/* Historico de ajustes: em qualquer etapa, quando houver pedidos. */}
+            {selected.ajustes > 0 && (
+              <div className="mt-4">
+                <VerAjustes pageId={selected.id} ajustes={selected.ajustes} />
+              </div>
+            )}
 
             {(() => {
               // A fonte da galeria depende da etapa (lib/board.ts):
@@ -340,6 +386,13 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+        <SessionExpiryGuard
+          expiresAt={sessionExpiresAt}
+          hasPendingEdits={sessionHasPendingEdits}
+          onSave={sessionSave}
+          onDiscard={sessionDiscard}
+        />
+      </>
     );
   }
 
@@ -347,6 +400,7 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
   // Desktop: 4 colunas em grid (todas visiveis, sem scroll horizontal).
   // Mobile: colunas empilhadas; os cards de cada etapa rolam na horizontal.
   return (
+    <>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       {COLUNAS.map((col) => {
         const lista = grupos.get(col.status) ?? [];
@@ -407,5 +461,12 @@ export function ApprovalBoard({ cards }: { cards: Card[] }) {
         );
       })}
     </div>
+      <SessionExpiryGuard
+        expiresAt={sessionExpiresAt}
+        hasPendingEdits={sessionHasPendingEdits}
+        onSave={sessionSave}
+        onDiscard={sessionDiscard}
+      />
+    </>
   );
 }
