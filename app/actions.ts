@@ -5,10 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import {
   getCardWrite,
   setArquivos,
-  registrarSolicitacaoAlteracao,
+  listarComentariosAjuste,
+  type AjusteComentario,
 } from "@/lib/notion";
-import { STATUS_EDITAVEL, modoDoStatus } from "@/lib/board";
-import { enviarWhatsApp } from "@/lib/whatsapp";
+import { STATUS_EDITAVEL } from "@/lib/board";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 
@@ -51,12 +51,12 @@ export async function aprovarCard(pageId: string) {
   revalidatePath("/");
 }
 
-// Solicitacao de alteracao na etapa "Concluido Designer/Arte": notifica a equipe
-// por WhatsApp (Evolution API). So permitido nessa etapa e para o cliente dono.
-export async function solicitarAlteracao(pageId: string, mensagem: string) {
-  const texto = mensagem.trim();
-  if (!texto) throw new Error("Descreva a alteração desejada.");
-
+// Lista os pedidos de alteracao do cliente (guardados como comentarios no card
+// do Notion), para o "Ver ajustes". Busca lazy: so quando o cliente abre a secao.
+// So o dono do card pode ler.
+export async function listarAjustes(
+  pageId: string
+): Promise<AjusteComentario[]> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -66,29 +66,8 @@ export async function solicitarAlteracao(pageId: string, mensagem: string) {
 
   const card = await getCardWrite(pageId);
   if (card.cliente !== cliente) throw new Error("Sem permissão.");
-  if (modoDoStatus(card.status) !== "aprovar-arte") {
-    throw new Error("Esta etapa não permite solicitar alteração.");
-  }
 
-  const corpo = [
-    "🔔 *Solicitação de alteração*",
-    `Cliente: ${cliente || "(sem cliente)"}`,
-    `Conteúdo: ${card.titulo}`,
-    "",
-    texto,
-  ].join("\n");
-
-  await enviarWhatsApp(corpo);
-
-  // Registra (Nº de Ajustes +1 + data da solicitacao) e devolve o card 1 etapa,
-  // para "Conteúdo aprovado". A data alimenta o badge de 24h no quadro.
-  await registrarSolicitacaoAlteracao(
-    pageId,
-    card.ajustes,
-    new Date().toISOString()
-  );
-
-  revalidatePath("/");
+  return listarComentariosAjuste(pageId);
 }
 
 // Aprova a etapa "Concluido Designer/Arte" => move o card para "Para agendar".

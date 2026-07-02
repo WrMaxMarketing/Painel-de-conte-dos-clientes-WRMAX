@@ -1,9 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-// Sessao do cliente expira 20min apos o login (limite absoluto, independente de atividade).
-const SESSION_MAX_AGE_MS = 20 * 60 * 1000;
-const SESSION_START_COOKIE = "client_session_start";
+import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
 
 // Refresca a sessao a cada request e protege as rotas: sem usuario => /login.
 export async function updateSession(request: NextRequest) {

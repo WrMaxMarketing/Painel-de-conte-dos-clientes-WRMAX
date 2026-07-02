@@ -3,12 +3,9 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { SESSION_MAX_AGE_SECONDS, SESSION_START_COOKIE } from "@/lib/session";
 
 export type LoginState = { error?: string };
-
-// Sessao do cliente expira 20min apos o login (limite absoluto, independente de atividade).
-const SESSION_MAX_AGE_SECONDS = 20 * 60;
-const SESSION_START_COOKIE = "client_session_start";
 
 export async function login(
   _prev: LoginState,
@@ -28,7 +25,7 @@ export async function login(
     return { error: "Email ou senha inválidos." };
   }
 
-  // Marca o inicio da sessao para o middleware impor o limite de 6h.
+  // Marca o inicio da sessao para o middleware impor o limite de 1h.
   const cookieStore = await cookies();
   cookieStore.set(SESSION_START_COOKIE, Date.now().toString(), {
     httpOnly: true,

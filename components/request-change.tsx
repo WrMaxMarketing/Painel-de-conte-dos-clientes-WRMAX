@@ -1,15 +1,26 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { AlertTriangle } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { solicitarAlteracao } from "@/app/actions";
 
 // Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
-// Ao enviar: notifica a equipe por WhatsApp, registra a alteração (Nº de Ajustes
-// +1) e devolve o card para "Conteúdo aprovado pelo cliente".
+// Ao enviar: cria um comentário no card do Notion (texto + imagens com descrição),
+// notifica a equipe por WhatsApp, registra a alteração (Nº de Ajustes +1) e
+// devolve o card para "Conteúdo aprovado".
+type ImagemItem = {
+  id: number;
+  file: File;
+  preview: string;
+  descricao: string;
+};
+
+const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (limite do upload do Notion)
+
 export function RequestChange({
   pageId,
   ajustes,
@@ -19,27 +30,90 @@ export function RequestChange({
   ajustes: number;
   onDone?: () => void;
 }) {
+  const router = useRouter();
   const [texto, setTexto] = useState("");
-  const [enviando, startTransition] = useTransition();
+  const [imagens, setImagens] = useState<ImagemItem[]>([]);
+  const [enviando, setEnviando] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const idRef = useRef(0);
 
-  function enviar() {
+  function onPickImagem(e: ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    // Permite escolher o mesmo arquivo de novo depois.
+    if (inputRef.current) inputRef.current.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem.");
+      return;
+    }
+    if (f.size > MAX_BYTES) {
+      toast.error("A imagem excede o limite de 20 MB.");
+      return;
+    }
+    setImagens((prev) => [
+      ...prev,
+      { id: idRef.current++, file: f, preview: URL.createObjectURL(f), descricao: "" },
+    ]);
+  }
+
+  function setDescricao(id: number, descricao: string) {
+    setImagens((prev) =>
+      prev.map((img) => (img.id === id ? { ...img, descricao } : img))
+    );
+  }
+
+  function removerImagem(id: number) {
+    setImagens((prev) => {
+      const alvo = prev.find((img) => img.id === id);
+      if (alvo) URL.revokeObjectURL(alvo.preview);
+      return prev.filter((img) => img.id !== id);
+    });
+  }
+
+  function limpar() {
+    setTexto("");
+    setImagens((prev) => {
+      prev.forEach((img) => URL.revokeObjectURL(img.preview));
+      return [];
+    });
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function enviar() {
     const msg = texto.trim();
     if (!msg) {
       toast.error("Descreva a alteração desejada.");
       return;
     }
-    startTransition(async () => {
-      try {
-        await solicitarAlteracao(pageId, msg);
-        toast.success("Solicitação enviada à equipe.");
-        setTexto("");
-        onDone?.();
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Não foi possível enviar."
-        );
+    setEnviando(true);
+    try {
+      const fd = new FormData();
+      fd.append("pageId", pageId);
+      fd.append("texto", msg);
+      // Cada imagem vai com a sua descrição, na mesma ordem (pares alinhados).
+      for (const img of imagens) {
+        fd.append("file", img.file);
+        fd.append("imagemDescricao", img.descricao.trim());
       }
-    });
+
+      const res = await fetch("/api/cards/ajustes", {
+        method: "POST",
+        body: fd,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Não foi possível enviar.");
+
+      toast.success("Solicitação enviada à equipe.");
+      limpar();
+      router.refresh();
+      onDone?.();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Não foi possível enviar."
+      );
+    } finally {
+      setEnviando(false);
+    }
   }
 
   return (
@@ -76,6 +150,63 @@ export function RequestChange({
         disabled={enviando}
         placeholder="Descreva aqui a alteração que deseja…"
       />
+
+      {/* Imagens de referência (opcional), cada uma com sua descrição */}
+      {imagens.length > 0 && (
+        <div className="space-y-3">
+          {imagens.map((img, i) => (
+            <div
+              key={img.id}
+              className="flex gap-3 rounded-md border bg-card p-3"
+            >
+              <div className="relative shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.preview}
+                  alt={`Imagem ${i + 1}`}
+                  className="size-20 rounded object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removerImagem(img.id)}
+                  disabled={enviando}
+                  title="Remover imagem"
+                  className="absolute -right-2 -top-2 rounded-full border bg-background p-1 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                >
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <Input
+                value={img.descricao}
+                onChange={(e) => setDescricao(img.id, e.target.value)}
+                disabled={enviando}
+                placeholder="Onde é e o que fazer (ex.: 0:45 do vídeo, trocar o texto)"
+                className="self-center"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onPickImagem}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={enviando}
+          onClick={() => inputRef.current?.click()}
+        >
+          <ImagePlus className="mr-1 size-4" />
+          {imagens.length ? "Adicionar nova imagem" : "Adicionar imagem"}
+        </Button>
+      </div>
 
       <Button onClick={enviar} disabled={enviando} className="w-full">
         {enviando ? "Enviando…" : "Enviar solicitação"}

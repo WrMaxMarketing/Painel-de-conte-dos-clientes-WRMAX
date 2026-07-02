@@ -139,6 +139,7 @@ export type CardWrite = {
   status: string | null;
   files: any[];
   ajustes: number;
+  url: string | null;
 };
 
 // Le titulo/dono/etapa/arquivos atuais (estado fresco, para checagem e preservacao).
@@ -150,6 +151,7 @@ export async function getCardWrite(pageId: string): Promise<CardWrite> {
     status: page.properties?.[PROP_STATUS]?.status?.name ?? null,
     files: page.properties?.[PROP_FILES]?.files ?? [],
     ajustes: getAjustes(page.properties),
+    url: page.url ?? null,
   };
 }
 
@@ -208,6 +210,101 @@ export async function uploadParaNotion(
   if (!send.ok) throw new Error("Falha ao enviar o arquivo ao Notion.");
 
   return id as string;
+}
+
+// --- Comentarios de ajuste (pedidos do cliente na etapa de arte) ---
+// Cada pedido vira um COMENTARIO na pagina do Notion (texto + imagem opcional).
+// A API de comentarios com anexo exige REST cru e uma versao mais nova que a do
+// SDK 2.3.0 (que so aceita comentario de texto).
+const NOTION_VERSION_COMMENTS = "2026-03-11";
+
+// Marcador na 1a linha do comentario: distingue os pedidos do cliente de outros
+// comentarios da equipe ao listar.
+export const AJUSTE_SENTINEL = "🔁 Ajuste do cliente";
+
+export type AjusteImagem = { url: string; category: string };
+export type AjusteComentario = {
+  id: string;
+  criadoEm: string; // ISO (created_time)
+  texto: string; // sem a linha do sentinel
+  imagens: AjusteImagem[];
+};
+
+const NOTION_COMMENTS_URL = "https://api.notion.com/v1/comments";
+function commentsAuth() {
+  return {
+    Authorization: `Bearer ${process.env.NOTION_TOKEN}`,
+    "Notion-Version": NOTION_VERSION_COMMENTS,
+  };
+}
+
+// Cria um comentario de ajuste na pagina. `texto` ja vem com a linha do sentinel.
+// `fileUploadIds` (ate 3) sao anexados como imagens (reusa uploadParaNotion).
+export async function criarComentarioAjuste(
+  pageId: string,
+  texto: string,
+  fileUploadIds: string[] = []
+): Promise<void> {
+  const body: Record<string, unknown> = {
+    parent: { page_id: pageId },
+    rich_text: [{ type: "text", text: { content: texto } }],
+  };
+  if (fileUploadIds.length) {
+    body.attachments = fileUploadIds.map((id) => ({
+      type: "file_upload",
+      file_upload_id: id,
+    }));
+  }
+  const res = await fetch(NOTION_COMMENTS_URL, {
+    method: "POST",
+    headers: { ...commentsAuth(), "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(
+      `Falha ao registrar o comentário no Notion.${detail ? ` ${detail}` : ""}`
+    );
+  }
+}
+
+// Lista os pedidos do cliente (comentarios com o sentinel), do mais recente ao
+// mais antigo. As URLs das imagens expiram — busque sob demanda (page dinamica).
+export async function listarComentariosAjuste(
+  pageId: string
+): Promise<AjusteComentario[]> {
+  const out: AjusteComentario[] = [];
+  let cursor: string | undefined = undefined;
+  do {
+    const url = new URL(NOTION_COMMENTS_URL);
+    url.searchParams.set("block_id", pageId);
+    url.searchParams.set("page_size", "100");
+    if (cursor) url.searchParams.set("start_cursor", cursor);
+
+    const res = await fetch(url, { headers: commentsAuth() });
+    if (!res.ok) throw new Error("Falha ao carregar os ajustes.");
+    const data: any = await res.json();
+
+    for (const c of data.results ?? []) {
+      const texto = (c.rich_text ?? [])
+        .map((r: any) => r.plain_text ?? r.text?.content ?? "")
+        .join("");
+      if (!texto.startsWith(AJUSTE_SENTINEL)) continue;
+      const imagens: AjusteImagem[] = (c.attachments ?? [])
+        .map((a: any) => ({ url: a.file?.url ?? "", category: a.category ?? "" }))
+        .filter((a: AjusteImagem) => a.url);
+      out.push({
+        id: c.id,
+        criadoEm: c.created_time,
+        texto: texto.slice(AJUSTE_SENTINEL.length).trim(),
+        imagens,
+      });
+    }
+    cursor = data.has_more ? (data.next_cursor as string) : undefined;
+  } while (cursor);
+
+  // A API retorna do mais antigo ao mais recente; invertemos para recente-primeiro.
+  return out.reverse();
 }
 
 // BLOCK (corpo): separado da query, paginado por cursor. Render read-only.
