@@ -1,18 +1,27 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import dynamic from "next/dynamic";
-import { ChevronLeft } from "lucide-react";
+import { BellRing, ChevronLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { aprovarCard, aprovarArteCard, reprovarCard } from "@/app/actions";
@@ -53,6 +62,24 @@ function mostraAjustes(card: Card): boolean {
   return card.ajustes > 0 && modoDoStatus(card.status) !== "aprovar";
 }
 
+// Cor da tag de formato do conteudo. Cada tipo tem sua cor, com tons ajustados
+// para bom contraste no modo claro e escuro:
+// estatico = azul claro, reels = rosa, carrossel = amarelo.
+function formatoBadgeClass(formato: string): string {
+  const chave = formato
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+  if (chave.includes("estatico"))
+    return "border-sky-500/50 bg-sky-500/15 text-sky-700 dark:text-sky-300";
+  if (chave.includes("reel"))
+    return "border-pink-500/50 bg-pink-500/15 text-pink-700 dark:text-pink-300";
+  if (chave.includes("carrossel") || chave.includes("carousel"))
+    return "border-yellow-500/60 bg-yellow-500/20 text-yellow-800 dark:text-yellow-300";
+  // Formato desconhecido: cinza neutro, ainda legivel nos dois temas.
+  return "border-border bg-muted text-muted-foreground";
+}
+
 export function ApprovalBoard({
   cards,
   sessionExpiresAt = null,
@@ -72,6 +99,10 @@ export function ApprovalBoard({
   // Espelho do `dirty` em ref: o timer de expiracao le o valor atual sem
   // depender do closure do render em que foi agendado.
   const dirtyRef = useRef(false);
+  // Marca que abrimos um card empurrando uma entrada no historico do navegador.
+  // Permite que a seta de voltar e o gesto de deslizar (mobile) fechem o card,
+  // e que o botao "Voltar" consuma essa entrada de forma consistente.
+  const pushedRef = useRef(false);
 
   const selected = cards.find((c) => c.id === selectedId) ?? null;
   const modo: ColunaModo = selected
@@ -89,6 +120,22 @@ export function ApprovalBoard({
     }
     return map;
   }, [cards]);
+
+  // Pendencias por etapa em que o cliente precisa agir (aprovar conteudo/arte).
+  const pendencias = useMemo(
+    () =>
+      COLUNAS.filter((c) => c.modo !== "leitura").map((c) => ({
+        label: c.label,
+        count: (grupos.get(c.status) ?? []).length,
+      })),
+    [grupos]
+  );
+  const totalPendencias = pendencias.reduce((s, p) => s + p.count, 0);
+
+  // Aviso de boas-vindas: aparece uma vez ao entrar no site quando ha conteudos
+  // aguardando a aprovacao do cliente. Estado inicial derivado na montagem — nao
+  // reabre a cada render.
+  const [welcomeOpen, setWelcomeOpen] = useState(() => totalPendencias > 0);
 
   const handleDirty = useCallback((d: boolean) => {
     dirtyRef.current = d;
@@ -117,12 +164,35 @@ export function ApprovalBoard({
     setDirty(false);
     dirtyRef.current = false;
     setSelectedId(id);
+    // Cria uma entrada no historico para que voltar pelo navegador ou pelo
+    // gesto (deslizar da esquerda no mobile) retorne ao quadro. Mantemos a
+    // mesma URL — o card e um estado da tela, nao uma rota compartilhavel.
+    pushedRef.current = true;
+    window.history.pushState({ cardOpen: true }, "");
   }
 
   function voltar() {
     setGate(null);
-    setSelectedId(null);
+    // Se abrimos empurrando uma entrada, voltamos consumindo-a (o listener de
+    // popstate limpa a selecao). Senao, apenas fecha o card.
+    if (pushedRef.current) {
+      window.history.back();
+    } else {
+      setSelectedId(null);
+    }
   }
+
+  // Fecha o card quando o usuario volta pelo navegador (seta ou gesto de
+  // deslizar no mobile), mantendo a UI em sincronia com o historico.
+  useEffect(() => {
+    function onPop() {
+      pushedRef.current = false;
+      setGate(null);
+      setSelectedId(null);
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   function doAprovar(card: Card) {
     const acaoModo = modoDoStatus(card.status);
@@ -253,7 +323,14 @@ export function ApprovalBoard({
           {/* Conteúdo */}
           <article className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              {selected.formato && <Badge>{selected.formato}</Badge>}
+              {selected.formato && (
+                <Badge
+                  variant="outline"
+                  className={`font-semibold ${formatoBadgeClass(selected.formato)}`}
+                >
+                  {selected.formato}
+                </Badge>
+              )}
               {selected.status && (
                 <Badge variant="outline" className="text-muted-foreground">
                   {selected.status}
@@ -334,7 +411,7 @@ export function ApprovalBoard({
 
           {/* Ações — painel lateral (desktop) */}
           {modo !== "leitura" && (
-            <aside className="mt-6 lg:mt-0 lg:sticky lg:top-20 lg:block lg:self-start">
+            <aside className="mt-6 pb-24 lg:mt-0 lg:block lg:self-start lg:pb-0 lg:sticky lg:top-20">
               <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
                 <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   Sua decisão
@@ -404,17 +481,33 @@ export function ApprovalBoard({
     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
       {COLUNAS.map((col) => {
         const lista = grupos.get(col.status) ?? [];
+        // Etapas de aprovacao com conteudos pendentes ganham uma borda com brilho
+        // ambar no card da coluna, para chamar a atencao do cliente.
+        const destaque = col.modo !== "leitura" && lista.length > 0;
         return (
           <div key={col.status} className="flex flex-col">
             <div className="mb-2 flex min-h-[2.75rem] items-start justify-between gap-2 px-1">
               <p className="text-xs font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
                 {col.label}
               </p>
-              <Badge variant="secondary" className="shrink-0 text-xs">
+              <Badge
+                variant={destaque ? "outline" : "secondary"}
+                className={
+                  destaque
+                    ? "shrink-0 border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                    : "shrink-0 text-xs"
+                }
+              >
                 {lista.length}
               </Badge>
             </div>
-            <div className="flex flex-1 gap-2 overflow-x-auto rounded-lg border bg-muted/30 p-2 md:flex-col md:overflow-visible">
+            <div
+              className={`flex flex-1 gap-2 overflow-x-auto rounded-lg border bg-muted/30 p-2 md:flex-col md:overflow-visible ${
+                destaque
+                  ? "border-amber-400/70 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)] dark:border-amber-300/60 dark:shadow-[0_0_16px_-1px_rgba(252,211,77,0.5)]"
+                  : ""
+              }`}
+            >
               {lista.length === 0 ? (
                 <p className="w-full px-1 py-6 text-center text-xs text-muted-foreground">
                   Nenhum conteúdo
@@ -436,7 +529,10 @@ export function ApprovalBoard({
                         </Badge>
                       )}
                       {card.formato && (
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs font-semibold ${formatoBadgeClass(card.formato)}`}
+                        >
                           {card.formato}
                         </Badge>
                       )}
@@ -461,6 +557,45 @@ export function ApprovalBoard({
         );
       })}
     </div>
+
+      {/* Aviso ao entrar: destaca os conteudos aguardando aprovacao. */}
+      <AlertDialog open={welcomeOpen} onOpenChange={setWelcomeOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
+              <BellRing />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Conteúdos aguardando você</AlertDialogTitle>
+            <AlertDialogDescription>
+              {totalPendencias === 1
+                ? "Há 1 conteúdo aguardando a sua aprovação:"
+                : `Há ${totalPendencias} conteúdos aguardando a sua aprovação:`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="space-y-2">
+            {pendencias
+              .filter((p) => p.count > 0)
+              .map((p) => (
+                <li
+                  key={p.label}
+                  className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2"
+                >
+                  <span className="text-sm font-medium">{p.label}</span>
+                  <Badge
+                    variant="outline"
+                    className="shrink-0 border-amber-500/50 bg-amber-500/15 font-semibold text-amber-700 dark:text-amber-400"
+                  >
+                    {p.count} {p.count === 1 ? "conteúdo" : "conteúdos"}
+                  </Badge>
+                </li>
+              ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogAction>Ver conteúdos</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <SessionExpiryGuard
         expiresAt={sessionExpiresAt}
         hasPendingEdits={sessionHasPendingEdits}

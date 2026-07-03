@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
+import { ZoomableImage } from "@/components/zoomable-image";
 
 type RichTextItem = {
   plain_text: string;
@@ -128,8 +129,7 @@ function SingleBlock({ block }: { block: any }) {
       const url = data.type === "external" ? data.external?.url : data.file?.url;
       if (!url) return null;
       return (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <ZoomableImage
           src={url}
           alt={data.caption?.map((t: RichTextItem) => t.plain_text).join("") || ""}
           className="rounded-md border border-border"

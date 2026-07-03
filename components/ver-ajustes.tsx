@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, ImageOff } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ZoomableImage } from "@/components/zoomable-image";
 import { listarAjustes } from "@/app/actions";
 import type { AjusteComentario } from "@/lib/notion";
 
@@ -101,21 +102,16 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
         <div className="mt-3 flex flex-wrap gap-2">
           {item.imagens.map((img, i) =>
             img.category === "image" ? (
-              <a
+              <div
                 key={i}
-                href={img.url}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="block overflow-hidden rounded-md border bg-background"
-                title="Abrir imagem"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <ZoomableImage
                   src={img.url}
                   alt="Imagem do ajuste"
                   className="max-h-40 w-auto object-contain"
                 />
-              </a>
+              </div>
             ) : (
               <a
                 key={i}

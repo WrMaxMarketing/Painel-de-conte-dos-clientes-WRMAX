@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Aprovação de Conteúdos — WRMAX",
+  title: "Aprovação de Conteúdos - WRMAX",
   description: "Aprove ou reprove seus conteúdos.",
 };
 
@@ -33,8 +33,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
-          enableSystem
+          defaultTheme="dark"
           disableTransitionOnChange
         >
           {children}
