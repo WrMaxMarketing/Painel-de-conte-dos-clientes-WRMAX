@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Download, FileText, Film, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ZoomableImage } from "@/components/zoomable-image";
 import { removerArquivo } from "@/app/actions";
 import type { MediaFile } from "@/lib/notion";
 
@@ -74,8 +75,7 @@ export function MediaGallery({
               className="group relative overflow-hidden rounded-lg border bg-card"
             >
               {f.kind === "image" ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <ZoomableImage
                   src={f.url}
                   alt={f.name}
                   className="aspect-square w-full object-cover"

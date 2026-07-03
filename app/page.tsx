@@ -43,7 +43,7 @@ export default async function Home() {
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <p className="text-base font-semibold tracking-tight sm:text-lg">
-              WRMAX
+              WRMAX MARKETING & IA
             </p>
             <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
               Aprovação de Conteúdos

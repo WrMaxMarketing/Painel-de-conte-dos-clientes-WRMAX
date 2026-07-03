@@ -27,7 +27,7 @@ export default async function AdminPage() {
         <Card className="w-full max-w-sm">
           <CardHeader className="text-center">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              WRMAX · Admin
+              WRMAX MARKETING & IA · Admin
             </p>
             <CardTitle className="text-xl">Painel do administrador</CardTitle>
             <CardDescription>Acesso restrito.</CardDescription>
@@ -48,7 +48,7 @@ export default async function AdminPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <p className="text-base font-semibold tracking-tight sm:text-lg">
-              WRMAX · Admin
+              WRMAX MARKETING & IA · Admin
             </p>
             <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
               Gerenciar acessos

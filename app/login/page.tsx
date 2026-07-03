@@ -1,3 +1,5 @@
+import { LoginForm } from "@/components/login-form";
+import { ModeToggle } from "@/components/mode-toggle";
 import {
   Card,
   CardContent,
@@ -5,8 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LoginForm } from "@/components/login-form";
-import { ModeToggle } from "@/components/mode-toggle";
 
 export default function LoginPage() {
   return (
@@ -17,7 +17,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            WRMAX
+            WRMAX MARKETING & IA
           </p>
           <CardTitle className="text-xl">Aprovação de Conteúdos</CardTitle>
           <CardDescription>Entre com seu email e senha.</CardDescription>
