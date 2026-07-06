@@ -9,7 +9,7 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
-import { BellRing, ChevronLeft } from "lucide-react";
+import { BellRing, ChevronLeft, PencilLine } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,9 @@ export function ApprovalBoard({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Etapa "Concluído Designer/Arte": abre o formulário de edição (texto + mídias)
+  // pelo botão do topo. Fica fechado por padrão.
+  const [editando, setEditando] = useState(false);
 
   // Estado de edicao do corpo (vindo do editor) e do alerta de bloqueio.
   // So importa na etapa editavel ("Conteúdo para aprovação").
@@ -163,6 +166,7 @@ export function ApprovalBoard({
     setGate(null);
     setDirty(false);
     dirtyRef.current = false;
+    setEditando(false);
     setSelectedId(id);
     // Cria uma entrada no historico para que voltar pelo navegador ou pelo
     // gesto (deslizar da esquerda no mobile) retorne ao quadro. Mantemos a
@@ -188,6 +192,7 @@ export function ApprovalBoard({
     function onPop() {
       pushedRef.current = false;
       setGate(null);
+      setEditando(false);
       setSelectedId(null);
     }
     window.addEventListener("popstate", onPop);
@@ -358,6 +363,33 @@ export function ApprovalBoard({
               {selected.titulo}
             </h2>
 
+            {/* Etapa "Concluído Designer/Arte": edição pelo topo. O botão abre o
+                formulário (texto + mídias); antes ficava fixo no rodapé. */}
+            {modo === "aprovar-arte" && (
+              <div className="mt-4">
+                {editando ? (
+                  <RequestChange
+                    pageId={selected.id}
+                    ajustes={selected.ajustes}
+                    onDone={() => {
+                      setEditando(false);
+                      voltar();
+                    }}
+                    onCancel={() => setEditando(false)}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditando(true)}
+                  >
+                    <PencilLine className="mr-1.5 size-4" />
+                    Editar / Solicitar alteração
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Historico de ajustes: em qualquer etapa, quando houver pedidos. */}
             {selected.ajustes > 0 && (
               <div className="mt-4">
@@ -397,16 +429,6 @@ export function ApprovalBoard({
               onDirtyChange={editavel ? handleDirty : undefined}
               onReady={editavel ? handleReady : undefined}
             />
-
-            {modo === "aprovar-arte" && (
-              <div className="mt-6">
-                <RequestChange
-                  pageId={selected.id}
-                  ajustes={selected.ajustes}
-                  onDone={voltar}
-                />
-              </div>
-            )}
           </article>
 
           {/* Ações — painel lateral (desktop) */}
