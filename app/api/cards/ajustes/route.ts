@@ -12,10 +12,10 @@ import { modoDoStatus } from "@/lib/board";
 import { enviarWhatsApp } from "@/lib/whatsapp";
 
 // Solicitacao de alteracao na etapa "Concluido Designer/Arte": texto livre +
-// (opcional) quantas imagens quiser, cada uma com uma descricao ("onde e e o que
-// fazer"). Cada pedido vira COMENTARIO(s) no card do Notion, notifica a equipe
-// por WhatsApp, incrementa o Nº de Ajustes e devolve o card para "Conteúdo
-// aprovado". So permitido nessa etapa e para o cliente dono do card.
+// (opcional) quantas imagens e/ou videos quiser, cada um com uma descricao
+// ("onde e e o que fazer"). Cada pedido vira COMENTARIO(s) no card do Notion,
+// notifica a equipe por WhatsApp, incrementa o Nº de Ajustes e devolve o card
+// para "Conteúdo aprovado". So permitido nessa etapa e para o cliente dono do card.
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (upload de parte unica do Notion)
 const MAX_ANEXOS_POR_COMENTARIO = 3; // limite da API de comentarios do Notion
 
@@ -43,9 +43,9 @@ export async function POST(req: Request) {
     );
   }
   for (const f of files) {
-    if (!f.type.startsWith("image/")) {
+    if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) {
       return NextResponse.json(
-        { error: "Os anexos precisam ser imagens." },
+        { error: "Os anexos precisam ser imagens ou vídeos." },
         { status: 400 }
       );
     }
@@ -70,52 +70,68 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Sobe as imagens (na ordem) e guarda id + descricao de cada uma.
-    const imagens: { id: string; descricao: string }[] = [];
+    // Sobe os anexos (na ordem) e guarda id + descricao + tipo de cada um.
+    const anexos: { id: string; descricao: string; kind: "image" | "video" }[] =
+      [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const id = await uploadParaNotion(await f.arrayBuffer(), f.name, f.type);
-      imagens.push({ id, descricao: descricoes[i] ?? "" });
+      anexos.push({
+        id,
+        descricao: descricoes[i] ?? "",
+        kind: f.type.startsWith("video/") ? "video" : "image",
+      });
     }
 
+    // Rotulo de cada anexo, numerado por tipo (Imagem 1, Imagem 2, Vídeo 1…).
+    let nImg = 0;
+    let nVid = 0;
+    const rotulos = anexos.map((a) => {
+      const sufixo = a.descricao ? `: ${a.descricao}` : "";
+      return a.kind === "video"
+        ? `🎬 Vídeo ${++nVid}${sufixo}`
+        : `📷 Imagem ${++nImg}${sufixo}`;
+    });
+
     // Monta os comentarios. Como o Notion aceita ate 3 anexos por comentario,
-    // agrupamos as imagens em blocos de 3 (numeradas globalmente). O texto geral
-    // vai no primeiro comentario. Sem imagens, um unico comentario de texto.
-    if (imagens.length === 0) {
+    // agrupamos em blocos de 3. O texto geral vai no primeiro comentario.
+    // Sem anexos, um unico comentario de texto.
+    if (anexos.length === 0) {
       await criarComentarioAjuste(pageId, `${AJUSTE_SENTINEL}\n${texto}`, []);
     } else {
       for (
         let start = 0;
-        start < imagens.length;
+        start < anexos.length;
         start += MAX_ANEXOS_POR_COMENTARIO
       ) {
-        const bloco = imagens.slice(start, start + MAX_ANEXOS_POR_COMENTARIO);
+        const bloco = anexos.slice(start, start + MAX_ANEXOS_POR_COMENTARIO);
         const linhas = [AJUSTE_SENTINEL];
         if (start === 0) linhas.push(texto);
-        bloco.forEach((img, i) => {
-          const n = start + i + 1;
-          linhas.push(`📷 Imagem ${n}${img.descricao ? `: ${img.descricao}` : ""}`);
-        });
+        rotulos
+          .slice(start, start + MAX_ANEXOS_POR_COMENTARIO)
+          .forEach((r) => linhas.push(r));
         await criarComentarioAjuste(
           pageId,
           linhas.join("\n"),
-          bloco.map((img) => img.id)
+          bloco.map((a) => a.id)
         );
       }
     }
 
-    // Notifica a equipe (as imagens nao vao pelo WhatsApp; apenas o aviso).
+    // Resumo dos anexos para o aviso (ex.: "2 imagens e 1 vídeo").
+    const partesResumo: string[] = [];
+    if (nImg) partesResumo.push(`${nImg} ${nImg === 1 ? "imagem" : "imagens"}`);
+    if (nVid) partesResumo.push(`${nVid} ${nVid === 1 ? "vídeo" : "vídeos"}`);
+    const resumoAnexos = partesResumo.join(" e ");
+
+    // Notifica a equipe (os anexos nao vao pelo WhatsApp; apenas o aviso).
     const corpo = [
       "🔔 *Solicitação de alteração*",
       `Cliente: ${cliente || "(sem cliente)"}`,
       `Conteúdo: ${card.titulo}`,
       "",
       texto,
-      imagens.length
-        ? `📎 ${imagens.length} ${
-            imagens.length === 1 ? "imagem anexada" : "imagens anexadas"
-          } (ver no painel/Notion).`
-        : "",
+      anexos.length ? `📎 ${resumoAnexos} em anexo (ver no painel/Notion).` : "",
       card.url ? `🔗 ${card.url}` : "",
     ]
       .filter(Boolean)

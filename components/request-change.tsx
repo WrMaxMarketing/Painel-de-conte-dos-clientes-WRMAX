@@ -2,24 +2,27 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ImagePlus, X } from "lucide-react";
+import { AlertTriangle, Film, ImagePlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 // Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
-// Ao enviar: cria um comentário no card do Notion (texto + imagens com descrição),
-// notifica a equipe por WhatsApp, registra a alteração (Nº de Ajustes +1) e
-// devolve o card para "Conteúdo aprovado".
-type ImagemItem = {
+// Ao enviar: cria um comentário no card do Notion (texto + imagens/vídeos com
+// descrição), notifica a equipe por WhatsApp, registra a alteração (Nº de
+// Ajustes +1) e devolve o card para "Conteúdo aprovado".
+type AnexoItem = {
   id: number;
   file: File;
   preview: string;
+  kind: "image" | "video";
   descricao: string;
 };
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (limite do upload do Notion)
+// Aceita imagens e vídeos, um ou vários de uma vez (misturados).
+const ACCEPT = "image/*,video/*";
 
 export function RequestChange({
   pageId,
@@ -32,48 +35,65 @@ export function RequestChange({
 }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
-  const [imagens, setImagens] = useState<ImagemItem[]>([]);
+  const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [enviando, setEnviando] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const idRef = useRef(0);
 
-  function onPickImagem(e: ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0];
-    // Permite escolher o mesmo arquivo de novo depois.
+  function onPickArquivos(e: ChangeEvent<HTMLInputElement>) {
+    const lista = e.target.files;
+    // Permite escolher os mesmos arquivos de novo depois.
     if (inputRef.current) inputRef.current.value = "";
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast.error("Selecione um arquivo de imagem.");
-      return;
+    if (!lista?.length) return;
+
+    const novos: AnexoItem[] = [];
+    let rejeitadosTipo = 0;
+    let rejeitadosTamanho = 0;
+    for (const f of Array.from(lista)) {
+      const ehImagem = f.type.startsWith("image/");
+      const ehVideo = f.type.startsWith("video/");
+      if (!ehImagem && !ehVideo) {
+        rejeitadosTipo++;
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        rejeitadosTamanho++;
+        continue;
+      }
+      novos.push({
+        id: idRef.current++,
+        file: f,
+        preview: URL.createObjectURL(f),
+        kind: ehVideo ? "video" : "image",
+        descricao: "",
+      });
     }
-    if (f.size > MAX_BYTES) {
-      toast.error("A imagem excede o limite de 20 MB.");
-      return;
-    }
-    setImagens((prev) => [
-      ...prev,
-      { id: idRef.current++, file: f, preview: URL.createObjectURL(f), descricao: "" },
-    ]);
+
+    if (rejeitadosTipo)
+      toast.error("Alguns arquivos foram ignorados: envie apenas imagens ou vídeos.");
+    if (rejeitadosTamanho)
+      toast.error("Alguns arquivos foram ignorados: cada um deve ter até 20 MB.");
+    if (novos.length) setAnexos((prev) => [...prev, ...novos]);
   }
 
   function setDescricao(id: number, descricao: string) {
-    setImagens((prev) =>
-      prev.map((img) => (img.id === id ? { ...img, descricao } : img))
+    setAnexos((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, descricao } : a))
     );
   }
 
-  function removerImagem(id: number) {
-    setImagens((prev) => {
-      const alvo = prev.find((img) => img.id === id);
+  function removerAnexo(id: number) {
+    setAnexos((prev) => {
+      const alvo = prev.find((a) => a.id === id);
       if (alvo) URL.revokeObjectURL(alvo.preview);
-      return prev.filter((img) => img.id !== id);
+      return prev.filter((a) => a.id !== id);
     });
   }
 
   function limpar() {
     setTexto("");
-    setImagens((prev) => {
-      prev.forEach((img) => URL.revokeObjectURL(img.preview));
+    setAnexos((prev) => {
+      prev.forEach((a) => URL.revokeObjectURL(a.preview));
       return [];
     });
     if (inputRef.current) inputRef.current.value = "";
@@ -90,10 +110,10 @@ export function RequestChange({
       const fd = new FormData();
       fd.append("pageId", pageId);
       fd.append("texto", msg);
-      // Cada imagem vai com a sua descrição, na mesma ordem (pares alinhados).
-      for (const img of imagens) {
-        fd.append("file", img.file);
-        fd.append("imagemDescricao", img.descricao.trim());
+      // Cada anexo vai com a sua descrição, na mesma ordem (pares alinhados).
+      for (const a of anexos) {
+        fd.append("file", a.file);
+        fd.append("imagemDescricao", a.descricao.trim());
       }
 
       const res = await fetch("/api/cards/ajustes", {
@@ -151,34 +171,48 @@ export function RequestChange({
         placeholder="Descreva aqui a alteração que deseja…"
       />
 
-      {/* Imagens de referência (opcional), cada uma com sua descrição */}
-      {imagens.length > 0 && (
+      {/* Anexos de referência (opcional): imagens e/ou vídeos, cada um com descrição */}
+      {anexos.length > 0 && (
         <div className="space-y-3">
-          {imagens.map((img, i) => (
+          {anexos.map((a) => (
             <div
-              key={img.id}
+              key={a.id}
               className="flex gap-3 rounded-md border bg-card p-3"
             >
               <div className="relative shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={img.preview}
-                  alt={`Imagem ${i + 1}`}
-                  className="size-20 rounded object-cover"
-                />
+                {a.kind === "video" ? (
+                  <>
+                    <video
+                      src={a.preview}
+                      muted
+                      preload="metadata"
+                      className="size-20 rounded bg-black object-cover"
+                    />
+                    <span className="absolute bottom-1 left-1 rounded bg-background/80 p-0.5 text-muted-foreground backdrop-blur">
+                      <Film className="size-3.5" />
+                    </span>
+                  </>
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={a.preview}
+                    alt={a.file.name}
+                    className="size-20 rounded object-cover"
+                  />
+                )}
                 <button
                   type="button"
-                  onClick={() => removerImagem(img.id)}
+                  onClick={() => removerAnexo(a.id)}
                   disabled={enviando}
-                  title="Remover imagem"
+                  title="Remover anexo"
                   className="absolute -right-2 -top-2 rounded-full border bg-background p-1 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
                 >
                   <X className="size-3.5" />
                 </button>
               </div>
               <Input
-                value={img.descricao}
-                onChange={(e) => setDescricao(img.id, e.target.value)}
+                value={a.descricao}
+                onChange={(e) => setDescricao(a.id, e.target.value)}
                 disabled={enviando}
                 placeholder="Onde é e o que fazer (ex.: 0:45 do vídeo, trocar o texto)"
                 className="self-center"
@@ -192,9 +226,10 @@ export function RequestChange({
         <input
           ref={inputRef}
           type="file"
-          accept="image/*"
+          accept={ACCEPT}
+          multiple
           className="hidden"
-          onChange={onPickImagem}
+          onChange={onPickArquivos}
         />
         <Button
           type="button"
@@ -204,7 +239,7 @@ export function RequestChange({
           onClick={() => inputRef.current?.click()}
         >
           <ImagePlus className="mr-1 size-4" />
-          {imagens.length ? "Adicionar nova imagem" : "Adicionar imagem"}
+          {anexos.length ? "Adicionar mais mídias" : "Adicionar imagens ou vídeos"}
         </Button>
       </div>
 
