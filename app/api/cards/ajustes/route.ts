@@ -6,6 +6,8 @@ import {
   uploadParaNotion,
   criarComentarioAjuste,
   registrarSolicitacaoAlteracao,
+  anexarSolicitacaoNoCorpo,
+  setArquivos,
   AJUSTE_SENTINEL,
 } from "@/lib/notion";
 import { modoDoStatus } from "@/lib/board";
@@ -70,32 +72,41 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Sobe os anexos (na ordem) e guarda id + descricao + tipo de cada um.
-    const anexos: { id: string; descricao: string; kind: "image" | "video" }[] =
-      [];
+    // Sobe cada anexo UMA vez e guarda id + nome + descricao + tipo. O mesmo
+    // file_upload id e reusado no comentario e em "Files & media" (validado).
+    const anexos: {
+      id: string;
+      name: string;
+      descricao: string;
+      kind: "image" | "video";
+    }[] = [];
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const id = await uploadParaNotion(await f.arrayBuffer(), f.name, f.type);
       anexos.push({
         id,
+        name: f.name,
         descricao: descricoes[i] ?? "",
         kind: f.type.startsWith("video/") ? "video" : "image",
       });
     }
 
-    // Rotulo de cada anexo, numerado por tipo (Imagem 1, Imagem 2, Vídeo 1…).
+    // Numeracao SEQUENCIAL global (1, 2, 3, 4…) — a mesma referencia usada nos
+    // comentarios e no resumo do corpo. A palavra reflete o tipo.
     let nImg = 0;
     let nVid = 0;
-    const rotulos = anexos.map((a) => {
+    const rotulos = anexos.map((a, i) => {
+      const n = i + 1;
+      if (a.kind === "video") nVid++;
+      else nImg++;
       const sufixo = a.descricao ? `: ${a.descricao}` : "";
       return a.kind === "video"
-        ? `🎬 Vídeo ${++nVid}${sufixo}`
-        : `📷 Imagem ${++nImg}${sufixo}`;
+        ? `🎬 Vídeo ${n}${sufixo}`
+        : `📷 Imagem ${n}${sufixo}`;
     });
 
-    // Monta os comentarios. Como o Notion aceita ate 3 anexos por comentario,
+    // 1) Comentarios do Notion. Como a API aceita ate 3 anexos por comentario,
     // agrupamos em blocos de 3. O texto geral vai no primeiro comentario.
-    // Sem anexos, um unico comentario de texto.
     if (anexos.length === 0) {
       await criarComentarioAjuste(pageId, `${AJUSTE_SENTINEL}\n${texto}`, []);
     } else {
@@ -117,6 +128,32 @@ export async function POST(req: Request) {
         );
       }
     }
+
+    // 2) Tambem anexa todas as midias em "Files & media" (preserva as existentes).
+    if (anexos.length) {
+      const novosFiles = anexos.map((a) => ({
+        type: "file_upload",
+        file_upload: { id: a.id },
+        name: a.name,
+      }));
+      await setArquivos(pageId, [...card.files, ...novosFiles]);
+    }
+
+    // 3) Resumo duravel no CORPO da pagina: separador + cabecalho identificando
+    // o cliente e a data + o pedido + referencias numeradas (so as com descricao).
+    const dataBr = new Date().toLocaleDateString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+    });
+    const header = `SOLICITAÇÃO DE ALTERAÇÃO POR ${(
+      cliente || "CLIENTE"
+    ).toUpperCase()} DIA ${dataBr}`;
+    const referencias = anexos
+      .map((a, i) => ({ n: i + 1, kind: a.kind, descricao: a.descricao }))
+      .filter((r) => r.descricao)
+      .map(
+        (r) => `${r.kind === "video" ? "Vídeo" : "Imagem"} ${r.n}: ${r.descricao}`
+      );
+    await anexarSolicitacaoNoCorpo(pageId, header, texto, referencias);
 
     // Resumo dos anexos para o aviso (ex.: "2 imagens e 1 vídeo").
     const partesResumo: string[] = [];

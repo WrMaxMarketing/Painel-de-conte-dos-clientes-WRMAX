@@ -320,3 +320,37 @@ export async function getBlocks(pageId: string) {
   } while (cursor);
   return blocks;
 }
+
+// Anexa o resumo de uma solicitacao de alteracao ao CORPO da pagina (blocos),
+// como registro duravel: separador chamativo + cabecalho + texto do pedido +
+// (opcional) referencias das imagens numeradas. Usa a API de blocos (append).
+const SEPARADOR_SOLICITACAO = "=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+";
+export async function anexarSolicitacaoNoCorpo(
+  pageId: string,
+  header: string,
+  texto: string,
+  referencias: string[] = []
+): Promise<void> {
+  const paragrafo = (content: string, bold = false) => ({
+    object: "block",
+    type: "paragraph",
+    paragraph: {
+      rich_text: [{ type: "text", text: { content }, annotations: { bold } }],
+    },
+  });
+  const item = (content: string) => ({
+    object: "block",
+    type: "bulleted_list_item",
+    bulleted_list_item: {
+      rich_text: [{ type: "text", text: { content } }],
+    },
+  });
+
+  const children: any[] = [paragrafo(SEPARADOR_SOLICITACAO), paragrafo(header, true)];
+  if (texto) children.push(paragrafo(texto));
+  if (referencias.length) {
+    children.push(paragrafo("Imagens de referência:", true));
+    for (const r of referencias) children.push(item(r));
+  }
+  await notion.blocks.children.append({ block_id: pageId, children } as any);
+}

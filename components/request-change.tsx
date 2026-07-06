@@ -2,11 +2,29 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, Film, ImagePlus, PencilLine, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  Film,
+  ImagePlus,
+  Loader2,
+  PencilLine,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
 // Ao enviar: cria um comentário no card do Notion (texto + imagens/vídeos com
@@ -41,19 +59,23 @@ export function RequestChange({
   const [texto, setTexto] = useState("");
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [enviando, setEnviando] = useState(false);
+  // Popup de arquivo acima do limite (20 MB).
+  const [popupGrande, setPopupGrande] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const idRef = useRef(0);
 
   function onPickArquivos(e: ChangeEvent<HTMLInputElement>) {
-    const lista = e.target.files;
+    // Copia os arquivos ANTES de limpar o input: `e.target.files` é uma
+    // referência viva que esvazia ao zerar `value` (por isso o preview sumia).
+    const arquivos = e.target.files ? Array.from(e.target.files) : [];
     // Permite escolher os mesmos arquivos de novo depois.
     if (inputRef.current) inputRef.current.value = "";
-    if (!lista?.length) return;
+    if (!arquivos.length) return;
 
     const novos: AnexoItem[] = [];
     let rejeitadosTipo = 0;
-    let rejeitadosTamanho = 0;
-    for (const f of Array.from(lista)) {
+    let algumGrande = false;
+    for (const f of arquivos) {
       const ehImagem = f.type.startsWith("image/");
       const ehVideo = f.type.startsWith("video/");
       if (!ehImagem && !ehVideo) {
@@ -61,7 +83,7 @@ export function RequestChange({
         continue;
       }
       if (f.size > MAX_BYTES) {
-        rejeitadosTamanho++;
+        algumGrande = true;
         continue;
       }
       novos.push({
@@ -76,8 +98,7 @@ export function RequestChange({
 
     if (rejeitadosTipo)
       toast.error("Alguns arquivos foram ignorados: envie apenas imagens ou vídeos.");
-    if (rejeitadosTamanho)
-      toast.error("Alguns arquivos foram ignorados: cada um deve ter até 20 MB.");
+    if (algumGrande) setPopupGrande(true);
     if (novos.length) setAnexos((prev) => [...prev, ...novos]);
   }
 
@@ -290,6 +311,16 @@ export function RequestChange({
         </Button>
       </div>
 
+      {/* Aviso de progresso enquanto as mídias sobem para o Notion. */}
+      {enviando && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="size-4 shrink-0 animate-spin" />
+          {anexos.length
+            ? "Enviando suas mídias, isso pode levar alguns segundos…"
+            : "Enviando sua solicitação…"}
+        </p>
+      )}
+
       <div className="flex gap-2">
         {onCancel && (
           <Button
@@ -305,9 +336,37 @@ export function RequestChange({
           </Button>
         )}
         <Button onClick={enviar} disabled={enviando} className="flex-1">
-          {enviando ? "Enviando…" : "Enviar solicitação"}
+          {enviando ? (
+            <>
+              <Loader2 className="mr-1.5 size-4 animate-spin" />
+              Enviando…
+            </>
+          ) : (
+            "Enviar solicitação"
+          )}
         </Button>
       </div>
+
+      {/* Popup: arquivo acima de 20 MB → orientar uso de link de drive. */}
+      <AlertDialog open={popupGrande} onOpenChange={setPopupGrande}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogMedia className="bg-red-500/15 text-red-600 dark:text-red-400">
+              <AlertTriangle />
+            </AlertDialogMedia>
+            <AlertDialogTitle>Arquivo muito grande</AlertDialogTitle>
+            <AlertDialogDescription>
+              O tamanho máximo por arquivo é <strong>20 MB</strong> e o arquivo
+              não foi adicionado. Para mídias maiores, faça o upload em um drive
+              (Google Drive, Dropbox, etc.) e cole o link do drive na descrição
+              da alteração.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
