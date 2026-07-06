@@ -9,7 +9,7 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
-import { BellRing, ChevronLeft } from "lucide-react";
+import { BellRing, ChevronDown, ChevronLeft, PencilLine } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,16 @@ export function ApprovalBoard({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  // Etapa "Concluído Designer/Arte": abre o formulário de edição (texto + mídias)
+  // pelo botão do topo. Fica fechado por padrão.
+  const [editando, setEditando] = useState(false);
+  // Mobile: cada etapa é um dropdown (accordion) — guarda o status da etapa
+  // aberta; abrir outra fecha a anterior. No desktop as colunas ignoram isto.
+  const [colunaAberta, setColunaAberta] = useState<string | null>(null);
+
+  function toggleColuna(status: string) {
+    setColunaAberta((cur) => (cur === status ? null : status));
+  }
 
   // Estado de edicao do corpo (vindo do editor) e do alerta de bloqueio.
   // So importa na etapa editavel ("Conteúdo para aprovação").
@@ -163,6 +173,7 @@ export function ApprovalBoard({
     setGate(null);
     setDirty(false);
     dirtyRef.current = false;
+    setEditando(false);
     setSelectedId(id);
     // Cria uma entrada no historico para que voltar pelo navegador ou pelo
     // gesto (deslizar da esquerda no mobile) retorne ao quadro. Mantemos a
@@ -188,6 +199,7 @@ export function ApprovalBoard({
     function onPop() {
       pushedRef.current = false;
       setGate(null);
+      setEditando(false);
       setSelectedId(null);
     }
     window.addEventListener("popstate", onPop);
@@ -358,6 +370,33 @@ export function ApprovalBoard({
               {selected.titulo}
             </h2>
 
+            {/* Etapa "Concluído Designer/Arte": edição pelo topo. O botão abre o
+                formulário (texto + mídias); antes ficava fixo no rodapé. */}
+            {modo === "aprovar-arte" && (
+              <div className="mt-4">
+                {editando ? (
+                  <RequestChange
+                    pageId={selected.id}
+                    ajustes={selected.ajustes}
+                    onDone={() => {
+                      setEditando(false);
+                      voltar();
+                    }}
+                    onCancel={() => setEditando(false)}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setEditando(true)}
+                  >
+                    <PencilLine className="mr-1.5 size-4" />
+                    Editar / Solicitar alteração
+                  </Button>
+                )}
+              </div>
+            )}
+
             {/* Historico de ajustes: em qualquer etapa, quando houver pedidos. */}
             {selected.ajustes > 0 && (
               <div className="mt-4">
@@ -397,16 +436,6 @@ export function ApprovalBoard({
               onDirtyChange={editavel ? handleDirty : undefined}
               onReady={editavel ? handleReady : undefined}
             />
-
-            {modo === "aprovar-arte" && (
-              <div className="mt-6">
-                <RequestChange
-                  pageId={selected.id}
-                  ajustes={selected.ajustes}
-                  onDone={voltar}
-                />
-              </div>
-            )}
           </article>
 
           {/* Ações — painel lateral (desktop) */}
@@ -475,7 +504,8 @@ export function ApprovalBoard({
 
   // --- QUADRO (kanban) ---
   // Desktop: 4 colunas em grid (todas visiveis, sem scroll horizontal).
-  // Mobile: colunas empilhadas; os cards de cada etapa rolam na horizontal.
+  // Mobile: cada etapa e um dropdown (accordion) — toca no cabecalho para ver os
+  // cards empilhados na vertical; abrir uma etapa fecha a anterior.
   return (
     <>
     <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -484,25 +514,41 @@ export function ApprovalBoard({
         // Etapas de aprovacao com conteudos pendentes ganham uma borda com brilho
         // ambar no card da coluna, para chamar a atencao do cliente.
         const destaque = col.modo !== "leitura" && lista.length > 0;
+        const aberta = colunaAberta === col.status;
         return (
           <div key={col.status} className="flex flex-col">
-            <div className="mb-2 flex min-h-[2.75rem] items-start justify-between gap-2 px-1">
+            {/* Cabecalho: botao de dropdown no mobile; so rotulo no desktop. */}
+            <button
+              type="button"
+              onClick={() => toggleColuna(col.status)}
+              aria-expanded={aberta}
+              className="mb-2 flex min-h-[2.75rem] w-full items-start justify-between gap-2 px-1 text-left md:pointer-events-none md:cursor-default"
+            >
               <p className="text-xs font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
                 {col.label}
               </p>
-              <Badge
-                variant={destaque ? "outline" : "secondary"}
-                className={
-                  destaque
-                    ? "shrink-0 border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
-                    : "shrink-0 text-xs"
-                }
-              >
-                {lista.length}
-              </Badge>
-            </div>
+              <span className="flex shrink-0 items-center gap-1.5">
+                <Badge
+                  variant={destaque ? "outline" : "secondary"}
+                  className={
+                    destaque
+                      ? "border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
+                      : "text-xs"
+                  }
+                >
+                  {lista.length}
+                </Badge>
+                <ChevronDown
+                  className={`size-4 text-muted-foreground transition-transform md:hidden ${
+                    aberta ? "rotate-180" : ""
+                  }`}
+                />
+              </span>
+            </button>
             <div
-              className={`flex flex-1 gap-2 overflow-x-auto rounded-lg border bg-muted/30 p-2 md:flex-col md:overflow-visible ${
+              className={`flex-1 flex-col gap-2 rounded-lg border bg-muted/30 p-2 md:flex ${
+                aberta ? "flex" : "hidden"
+              } ${
                 destaque
                   ? "border-amber-400/70 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)] dark:border-amber-300/60 dark:shadow-[0_0_16px_-1px_rgba(252,211,77,0.5)]"
                   : ""
@@ -517,7 +563,7 @@ export function ApprovalBoard({
                   <button
                     key={card.id}
                     onClick={() => selectCard(card.id)}
-                    className="w-[220px] shrink-0 rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent md:w-full md:shrink"
+                    className="w-full rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent"
                   >
                     <div className="mb-1.5 flex flex-wrap gap-1.5">
                       {alteracaoRecente(card.solicitacaoEm) && (

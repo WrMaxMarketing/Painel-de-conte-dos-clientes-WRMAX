@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Film, ImagePlus, X } from "lucide-react";
+import { AlertTriangle, Check, Film, ImagePlus, PencilLine, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ type AnexoItem = {
   preview: string;
   kind: "image" | "video";
   descricao: string;
+  // Campo de descricao aberto (via lapis)? Comeca fechado para nao poluir a UI.
+  descricaoAberta: boolean;
 };
 
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (limite do upload do Notion)
@@ -28,10 +30,12 @@ export function RequestChange({
   pageId,
   ajustes,
   onDone,
+  onCancel,
 }: {
   pageId: string;
   ajustes: number;
   onDone?: () => void;
+  onCancel?: () => void;
 }) {
   const router = useRouter();
   const [texto, setTexto] = useState("");
@@ -66,6 +70,7 @@ export function RequestChange({
         preview: URL.createObjectURL(f),
         kind: ehVideo ? "video" : "image",
         descricao: "",
+        descricaoAberta: false,
       });
     }
 
@@ -79,6 +84,14 @@ export function RequestChange({
   function setDescricao(id: number, descricao: string) {
     setAnexos((prev) =>
       prev.map((a) => (a.id === id ? { ...a, descricao } : a))
+    );
+  }
+
+  function toggleDescricao(id: number) {
+    setAnexos((prev) =>
+      prev.map((a) =>
+        a.id === id ? { ...a, descricaoAberta: !a.descricaoAberta } : a
+      )
     );
   }
 
@@ -210,13 +223,47 @@ export function RequestChange({
                   <X className="size-3.5" />
                 </button>
               </div>
-              <Input
-                value={a.descricao}
-                onChange={(e) => setDescricao(a.id, e.target.value)}
-                disabled={enviando}
-                placeholder="Onde é e o que fazer (ex.: 0:45 do vídeo, trocar o texto)"
-                className="self-center"
-              />
+              {/* Descrição da mídia: fechada por padrão, abre no ícone de lápis. */}
+              <div className="flex min-w-0 flex-1 items-center">
+                {a.descricaoAberta ? (
+                  <div className="flex w-full items-center gap-2">
+                    <Input
+                      autoFocus
+                      value={a.descricao}
+                      onChange={(e) => setDescricao(a.id, e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") toggleDescricao(a.id);
+                      }}
+                      disabled={enviando}
+                      placeholder="Onde é e o que fazer (ex.: 0:45 do vídeo, trocar o texto)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleDescricao(a.id)}
+                      disabled={enviando}
+                      title="Concluir descrição"
+                      className="shrink-0 rounded-md border p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                    >
+                      <Check className="size-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => toggleDescricao(a.id)}
+                    disabled={enviando}
+                    title="Adicionar descrição desta mídia"
+                    className="flex min-w-0 items-center gap-2 text-left text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                  >
+                    <PencilLine className="size-4 shrink-0" />
+                    {a.descricao ? (
+                      <span className="truncate">{a.descricao}</span>
+                    ) : (
+                      <span>Descrever onde esta mídia vai</span>
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -243,9 +290,24 @@ export function RequestChange({
         </Button>
       </div>
 
-      <Button onClick={enviar} disabled={enviando} className="w-full">
-        {enviando ? "Enviando…" : "Enviar solicitação"}
-      </Button>
+      <div className="flex gap-2">
+        {onCancel && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={enviando}
+            onClick={() => {
+              limpar();
+              onCancel();
+            }}
+          >
+            Cancelar
+          </Button>
+        )}
+        <Button onClick={enviar} disabled={enviando} className="flex-1">
+          {enviando ? "Enviando…" : "Enviar solicitação"}
+        </Button>
+      </div>
     </div>
   );
 }
