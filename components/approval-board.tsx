@@ -428,6 +428,18 @@ export function ApprovalBoard({
             })()}
 
             <Separator className="my-4 sm:my-5" />
+            {/* Etapa "Conteúdo para aprovar": deixa claro que o corpo é editável.
+                A edição é inline no próprio editor; o popup de salvar (gate) é
+                acionado ao aprovar/reprovar com alterações pendentes. */}
+            {editavel && (
+              <div className="mb-3 flex items-start gap-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                <PencilLine className="mt-0.5 size-3.5 shrink-0" />
+                <span>
+                  Você pode editar este conteúdo: clique no texto para alterar.
+                  Lembre-se de salvar as alterações antes de aprovar.
+                </span>
+              </div>
+            )}
             <BodyEditor
               key={selected.id}
               pageId={selected.id}
