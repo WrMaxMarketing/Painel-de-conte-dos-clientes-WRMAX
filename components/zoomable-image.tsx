@@ -74,6 +74,12 @@ function Lightbox({
     originX: number;
     originY: number;
   }>({ active: false, moved: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  // Ponteiros ativos (para pinch com 2 dedos) e estado da pinça em andamento.
+  const pointers = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef({ active: false, startDist: 0, startScale: 1 });
+
+  const clampScale = (v: number) =>
+    Math.min(MAX_SCALE, Math.max(MIN_SCALE, v));
 
   const zoomBy = useCallback((delta: number) => {
     setScale((prev) => {
@@ -104,9 +110,23 @@ function Lightbox({
     zoomBy(e.deltaY < 0 ? STEP : -STEP);
   }
 
+  function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  }
+
   function onPointerDown(e: ReactPointerEvent) {
-    if (scale <= 1) return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    // Dois dedos: inicia pinça (zoom por gesto), o padrão em imagem em tela cheia.
+    if (pointers.current.size === 2) {
+      const [a, b] = [...pointers.current.values()];
+      pinch.current = { active: true, startDist: dist(a, b), startScale: scale };
+      drag.current.active = false;
+      setDragging(false);
+      return;
+    }
+    // Um dedo: arrasta para navegar (só faz sentido com zoom aplicado).
+    if (scale <= 1) return;
     drag.current = {
       active: true,
       moved: false,
@@ -119,6 +139,18 @@ function Lightbox({
   }
 
   function onPointerMove(e: ReactPointerEvent) {
+    if (pointers.current.has(e.pointerId)) {
+      pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    if (pinch.current.active && pointers.current.size >= 2) {
+      const [a, b] = [...pointers.current.values()];
+      const next = clampScale(
+        pinch.current.startScale * (dist(a, b) / pinch.current.startDist)
+      );
+      setScale(next);
+      if (next === 1) setOffset({ x: 0, y: 0 });
+      return;
+    }
     if (!drag.current.active) return;
     const dx = e.clientX - drag.current.startX;
     const dy = e.clientY - drag.current.startY;
@@ -126,7 +158,9 @@ function Lightbox({
     setOffset({ x: drag.current.originX + dx, y: drag.current.originY + dy });
   }
 
-  function onPointerUp() {
+  function onPointerUp(e: ReactPointerEvent) {
+    pointers.current.delete(e.pointerId);
+    if (pointers.current.size < 2) pinch.current.active = false;
     drag.current.active = false;
     setDragging(false);
   }
@@ -149,16 +183,15 @@ function Lightbox({
     >
       {/* Controles */}
       <div
-        className="absolute right-3 top-3 z-10 flex items-center gap-2"
+        className="absolute right-[max(0.75rem,env(safe-area-inset-right))] top-[max(0.75rem,env(safe-area-inset-top))] z-10 flex items-center gap-2"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           type="button"
           onClick={() => zoomBy(-STEP)}
           disabled={scale <= MIN_SCALE}
-          title="Diminuir zoom"
           aria-label="Diminuir zoom"
-          className="rounded-full bg-white/10 p-2 text-white backdrop-blur transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="rounded-full bg-white/10 p-3 text-white backdrop-blur transition-colors hover:bg-white/20 active:bg-white/30 disabled:opacity-40 md:p-2"
         >
           <ZoomOut className="size-5" />
         </button>
@@ -166,18 +199,17 @@ function Lightbox({
           type="button"
           onClick={() => zoomBy(STEP)}
           disabled={scale >= MAX_SCALE}
-          title="Aumentar zoom"
           aria-label="Aumentar zoom"
-          className="rounded-full bg-white/10 p-2 text-white backdrop-blur transition-colors hover:bg-white/20 disabled:opacity-40"
+          className="rounded-full bg-white/10 p-3 text-white backdrop-blur transition-colors hover:bg-white/20 active:bg-white/30 disabled:opacity-40 md:p-2"
         >
           <ZoomIn className="size-5" />
         </button>
         <button
           type="button"
+          autoFocus
           onClick={onClose}
-          title="Fechar (Esc)"
           aria-label="Fechar pré-visualização"
-          className="rounded-full bg-white/10 p-2 text-white backdrop-blur transition-colors hover:bg-white/20"
+          className="rounded-full bg-white/10 p-3 text-white backdrop-blur transition-colors hover:bg-white/20 active:bg-white/30 md:p-2"
         >
           <X className="size-5" />
         </button>
@@ -192,6 +224,7 @@ function Lightbox({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
         onDoubleClick={(e) => e.stopPropagation()}
         draggable={false}
         className="max-h-[90vh] max-w-[92vw] select-none object-contain shadow-2xl"

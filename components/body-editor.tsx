@@ -94,7 +94,7 @@ export function BodyEditor({
 
   return (
     <div>
-      <div className="overflow-hidden rounded-md border bg-card py-2">
+      <div className="overflow-x-auto rounded-md border bg-card py-2">
         <BlockNoteView
           editor={editor}
           editable={!readOnly}
@@ -103,11 +103,11 @@ export function BodyEditor({
         />
       </div>
       {!readOnly && (
-      <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <p className="text-xs text-muted-foreground" aria-live="polite">
           {dirty ? "● Alterações não salvas." : "Edite o conteúdo e salve antes de aprovar."}
         </p>
-        <div className="flex gap-2">
+        <div className="flex gap-2 [&>button]:flex-1 sm:[&>button]:flex-none">
           {dirty && (
             <Button
               variant="ghost"

@@ -99,8 +99,8 @@ export function MediaGallery({
                   type="button"
                   onClick={() => onRemove(i, f.name)}
                   disabled={ocupado}
-                  title="Remover"
-                  className="absolute right-1 top-1 rounded-full bg-background/80 p-1 text-muted-foreground backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                  aria-label={`Remover ${f.name}`}
+                  className="absolute right-1 top-1 rounded-full bg-background/80 p-2.5 text-muted-foreground backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground active:bg-destructive active:text-destructive-foreground disabled:opacity-50 md:p-1"
                 >
                   <X className="size-4" />
                 </button>
@@ -110,15 +110,17 @@ export function MediaGallery({
               <figcaption className="flex items-center justify-between gap-2 border-t bg-card/80 px-2 py-1.5">
                 <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
                   {f.kind === "video" && <Film className="size-3 shrink-0" />}
-                  <span className="truncate">{f.name}</span>
+                  <span className="truncate" title={f.name}>
+                    {f.name}
+                  </span>
                 </span>
                 <a
                   href={f.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   download={f.name}
-                  title="Baixar"
-                  className="shrink-0 rounded p-1 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                  aria-label={`Baixar ${f.name}`}
+                  className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground md:p-1"
                 >
                   <Download className="size-4" />
                 </a>
@@ -130,6 +132,11 @@ export function MediaGallery({
 
       {editable && (
         <div>
+          {arquivos.length === 0 && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Nenhuma mídia ainda. Adicione imagens ou vídeos abaixo.
+            </p>
+          )}
           <input
             ref={inputRef}
             type="file"
@@ -140,9 +147,9 @@ export function MediaGallery({
           <Button
             type="button"
             variant="outline"
-            size="sm"
             disabled={ocupado}
             onClick={() => inputRef.current?.click()}
+            className="w-full sm:w-auto"
           >
             <Plus className="mr-1 size-4" />
             {uploading ? "Enviando…" : "Adicionar mídia"}

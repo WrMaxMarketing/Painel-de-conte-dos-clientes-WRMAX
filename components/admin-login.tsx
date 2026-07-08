@@ -20,6 +20,7 @@ export function AdminLogin() {
           name="senha"
           type="password"
           autoComplete="current-password"
+          disabled={pending}
           required
         />
       </div>

@@ -132,7 +132,7 @@ function SingleBlock({ block }: { block: any }) {
         <ZoomableImage
           src={url}
           alt={data.caption?.map((t: RichTextItem) => t.plain_text).join("") || ""}
-          className="rounded-md border border-border"
+          className="h-auto max-w-full rounded-md border border-border"
         />
       );
     }
@@ -193,5 +193,5 @@ export function NotionBlocks({ blocks }: { blocks: any[] }) {
     i++;
   }
 
-  return <div className="space-y-3 text-[0.95rem]">{out}</div>;
+  return <div className="space-y-3 break-words text-[0.95rem]">{out}</div>;
 }

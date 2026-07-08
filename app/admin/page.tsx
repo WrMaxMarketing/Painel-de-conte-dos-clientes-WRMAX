@@ -21,7 +21,7 @@ export default async function AdminPage() {
   if (!admin) {
     return (
       <main className="relative flex min-h-dvh flex-1 items-center justify-center px-4">
-        <div className="absolute right-3 top-3">
+        <div className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))]">
           <ModeToggle />
         </div>
         <Card className="w-full max-w-sm">
@@ -44,25 +44,20 @@ export default async function AdminPage() {
 
   return (
     <main className="flex-1">
-      <header className="border-b bg-card">
+      <header className="border-b bg-card pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <p className="text-base font-semibold tracking-tight sm:text-lg">
               WRMAX MARKETING & IA · Admin
             </p>
-            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
+            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
               Gerenciar acessos
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <ModeToggle />
             <form action={adminLogout}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-              >
+              <Button type="submit" variant="ghost">
                 Sair
               </Button>
             </form>

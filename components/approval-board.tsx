@@ -275,6 +275,7 @@ export function ApprovalBoard({
         <Button
           onClick={() => requestAprovar(card)}
           disabled={isPending}
+          size="lg"
           className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
         >
           {isPending ? "Enviando…" : aprovarLabel}
@@ -284,7 +285,8 @@ export function ApprovalBoard({
             onClick={() => requestReprovar(card)}
             disabled={isPending}
             variant="outline"
-            className="text-muted-foreground hover:text-destructive"
+            size="lg"
+            className="border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
           >
             Reprovar
           </Button>
@@ -319,7 +321,7 @@ export function ApprovalBoard({
       <div className="min-w-0">
         <button
           onClick={voltar}
-          className="mb-3 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          className="-mx-2 mb-3 inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="size-4" />
           Voltar para o quadro
@@ -331,7 +333,11 @@ export function ApprovalBoard({
           </div>
         )}
 
-        <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-6">
+        <div
+          className={`lg:grid lg:grid-cols-[1fr_220px] lg:gap-6 ${
+            modo !== "leitura" ? "pb-28 lg:pb-0" : ""
+          }`}
+        >
           {/* Conteúdo */}
           <article className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -450,23 +456,37 @@ export function ApprovalBoard({
             />
           </article>
 
-          {/* Ações — painel lateral (desktop) */}
+          {/* Ações. Desktop: painel lateral sticky. Mobile: barra fixa no rodapé
+              para a decisão ficar sempre à mão, sem rolar todo o conteúdo. */}
           {modo !== "leitura" && (
-            <aside className="mt-6 pb-24 lg:mt-0 lg:block lg:self-start lg:pb-0 lg:sticky lg:top-20">
-              <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-                <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-                  Sua decisão
-                </p>
-                <div className="flex flex-col gap-3 [&>button]:w-full">
-                  {acoes(selected)}
+            <>
+              <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
+                <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
+                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                    Sua decisão
+                  </p>
+                  <div className="flex flex-col gap-3 [&>button]:w-full">
+                    {acoes(selected)}
+                  </div>
+                  {editavel && dirty && (
+                    <p className="text-xs text-muted-foreground">
+                      Você tem alterações não salvas no conteúdo.
+                    </p>
+                  )}
                 </div>
+              </aside>
+
+              <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-card/80 lg:hidden">
                 {editavel && dirty && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="mb-2 text-center text-xs text-muted-foreground">
                     Você tem alterações não salvas no conteúdo.
                   </p>
                 )}
+                <div className="mx-auto flex max-w-5xl gap-3 [&>button]:flex-1">
+                  {acoes(selected)}
+                </div>
               </div>
-            </aside>
+            </>
           )}
         </div>
 
@@ -495,7 +515,7 @@ export function ApprovalBoard({
               <Button
                 variant="ghost"
                 onClick={gateDescartar}
-                className="text-muted-foreground hover:text-destructive"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 Descartar
               </Button>

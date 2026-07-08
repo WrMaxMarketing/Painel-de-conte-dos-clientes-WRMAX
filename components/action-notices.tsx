@@ -33,8 +33,10 @@ export function ActionNotices({ modo }: { modo: ColunaModo }) {
 
   if (modo === "leitura") return null;
 
+  // Avisos informativos (não bloqueiam) usam âmbar/atenção — mesmo padrão do
+  // restante do app; vermelho fica reservado para erros/bloqueios reais.
   const box =
-    "flex items-start gap-2 rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400";
+    "flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-300";
 
   return (
     <div className="space-y-2">

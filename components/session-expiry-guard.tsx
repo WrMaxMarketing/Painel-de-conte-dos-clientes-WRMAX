@@ -102,7 +102,7 @@ export function SessionExpiryGuard({
         </AlertDialogHeader>
 
         {saveError && (
-          <p className="text-sm text-destructive">
+          <p className="text-sm text-destructive" role="alert">
             Não foi possível salvar. Tente novamente ou descarte as alterações.
           </p>
         )}
@@ -112,19 +112,20 @@ export function SessionExpiryGuard({
             <>
               <Button
                 variant="ghost"
+                size="lg"
                 onClick={handleDiscard}
                 disabled={busy}
-                className="text-muted-foreground hover:text-destructive"
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
               >
                 Descartar e sair
               </Button>
-              <Button onClick={handleSave} disabled={busy}>
+              <Button size="lg" onClick={handleSave} disabled={busy}>
                 {busy ? "Salvando…" : "Salvar e entrar novamente"}
               </Button>
             </>
           ) : (
-            <Button onClick={goLogin} disabled={busy}>
-              Entrar novamente
+            <Button size="lg" onClick={goLogin} disabled={busy}>
+              {busy ? "Saindo…" : "Entrar novamente"}
             </Button>
           )}
         </AlertDialogFooter>

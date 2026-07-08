@@ -39,25 +39,20 @@ export default async function Home() {
   return (
     <main className="flex-1">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <header className="sticky top-0 z-20 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <p className="text-base font-semibold tracking-tight sm:text-lg">
               WRMAX MARKETING & IA
             </p>
-            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
+            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
               Aprovação de Conteúdos
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <ModeToggle />
             <form action={signOut}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-              >
+              <Button type="submit" variant="ghost">
                 Sair
               </Button>
             </form>

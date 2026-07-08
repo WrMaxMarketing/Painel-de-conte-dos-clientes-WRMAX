@@ -11,7 +11,7 @@ import {
 export default function LoginPage() {
   return (
     <main className="relative flex min-h-dvh flex-1 items-center justify-center px-4">
-      <div className="absolute right-3 top-3">
+      <div className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))]">
         <ModeToggle />
       </div>
       <Card className="w-full max-w-sm">
