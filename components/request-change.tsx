@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Notice } from "@/components/ui/notice";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,13 +181,10 @@ export function RequestChange({
         </p>
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-300">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-        <span>
-          Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
-          adicionais serão cobradas como taxa extra.
-        </span>
-      </div>
+      <Notice tone="warning">
+        Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
+        adicionais serão cobradas como taxa extra.
+      </Notice>
 
       {ajustes > 0 && (
         <p className="text-xs text-muted-foreground">
@@ -203,6 +201,7 @@ export function RequestChange({
         onChange={(e) => setTexto(e.target.value)}
         disabled={enviando}
         maxLength={2000}
+        className="min-h-24"
         placeholder="Descreva aqui a alteração que deseja…"
       />
 
@@ -221,9 +220,9 @@ export function RequestChange({
                       src={a.preview}
                       muted
                       preload="metadata"
-                      className="size-20 rounded bg-black object-cover"
+                      className="size-20 rounded-md bg-muted object-cover"
                     />
-                    <span className="absolute bottom-1 left-1 rounded bg-background/80 p-0.5 text-muted-foreground backdrop-blur">
+                    <span className="absolute bottom-1 left-1 rounded-sm bg-background/80 p-0.5 text-muted-foreground backdrop-blur">
                       <Film className="size-3.5" />
                     </span>
                   </>
@@ -232,7 +231,7 @@ export function RequestChange({
                   <img
                     src={a.preview}
                     alt={a.file.name}
-                    className="size-20 rounded object-cover"
+                    className="size-20 rounded-md object-cover"
                   />
                 )}
                 <button
@@ -265,7 +264,7 @@ export function RequestChange({
                       onClick={() => toggleDescricao(a.id)}
                       disabled={enviando}
                       aria-label="Concluir descrição"
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground disabled:opacity-50 md:h-8 md:w-8"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground disabled:opacity-50 md:h-8 md:w-8"
                     >
                       <Check className="size-4" />
                     </button>
@@ -353,7 +352,7 @@ export function RequestChange({
       <AlertDialog open={popupGrande} onOpenChange={setPopupGrande}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogMedia className="bg-red-500/15 text-red-600 dark:text-red-400">
+            <AlertDialogMedia className="bg-warning/15 text-warning">
               <AlertTriangle />
             </AlertDialogMedia>
             <AlertDialogTitle>Arquivo muito grande</AlertDialogTitle>

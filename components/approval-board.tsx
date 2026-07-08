@@ -9,7 +9,14 @@ import {
   useTransition,
 } from "react";
 import dynamic from "next/dynamic";
-import { BellRing, ChevronDown, ChevronLeft, PencilLine } from "lucide-react";
+import {
+  BellRing,
+  ChevronDown,
+  ChevronLeft,
+  PencilLine,
+  Sparkles,
+} from "lucide-react";
+import { Notice } from "@/components/ui/notice";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,9 +69,10 @@ function mostraAjustes(card: Card): boolean {
   return card.ajustes > 0 && modoDoStatus(card.status) !== "aprovar";
 }
 
-// Cor da tag de formato do conteudo. Cada tipo tem sua cor, com tons ajustados
-// para bom contraste no modo claro e escuro:
-// estatico = azul claro, reels = rosa, carrossel = amarelo.
+// Cor da tag de formato (categórica, não semântica). Escala única de alpha
+// (border /50, bg /15, text -700 / dark -300). Carrossel usa violeta (matiz frio)
+// para NÃO competir com o amarelo da marca/atenção.
+// estatico = azul, reels = rosa, carrossel = violeta.
 function formatoBadgeClass(formato: string): string {
   const chave = formato
     .normalize("NFD")
@@ -75,7 +83,7 @@ function formatoBadgeClass(formato: string): string {
   if (chave.includes("reel"))
     return "border-pink-500/50 bg-pink-500/15 text-pink-700 dark:text-pink-300";
   if (chave.includes("carrossel") || chave.includes("carousel"))
-    return "border-yellow-500/60 bg-yellow-500/20 text-yellow-800 dark:text-yellow-300";
+    return "border-violet-500/50 bg-violet-500/15 text-violet-700 dark:text-violet-300";
   // Formato desconhecido: cinza neutro, ainda legivel nos dois temas.
   return "border-border bg-muted text-muted-foreground";
 }
@@ -276,7 +284,7 @@ export function ApprovalBoard({
           onClick={() => requestAprovar(card)}
           disabled={isPending}
           size="lg"
-          className="bg-emerald-600 text-white hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+          variant="success"
         >
           {isPending ? "Enviando…" : aprovarLabel}
         </Button>
@@ -298,8 +306,9 @@ export function ApprovalBoard({
   if (!cards.length) {
     return (
       <>
-        <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
-          <p className="text-2xl font-semibold">Tudo em dia ✦</p>
+        <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
+          <Sparkles className="mx-auto mb-3 size-8 text-primary" />
+          <p className="text-2xl font-semibold">Tudo em dia</p>
           <p className="mt-2 text-muted-foreground">
             Nenhum conteúdo na sua esteira no momento.
           </p>
@@ -355,18 +364,10 @@ export function ApprovalBoard({
                 </Badge>
               )}
               {alteracaoRecente(selected.solicitacaoEm) && (
-                <Badge
-                  variant="outline"
-                  className="border-amber-500/50 bg-amber-500/15 font-semibold text-amber-700 dark:text-amber-400"
-                >
-                  Alteração solicitada
-                </Badge>
+                <Badge variant="warning">Alteração solicitada</Badge>
               )}
               {mostraAjustes(selected) && (
-                <Badge
-                  variant="outline"
-                  className="border-orange-500/60 bg-orange-500/15 font-semibold text-orange-700 dark:text-orange-400"
-                >
+                <Badge variant="secondary">
                   {selected.ajustes}{" "}
                   {selected.ajustes === 1 ? "ajuste" : "ajustes"}
                 </Badge>
@@ -396,7 +397,7 @@ export function ApprovalBoard({
                     variant="outline"
                     onClick={() => setEditando(true)}
                   >
-                    <PencilLine className="mr-1.5 size-4" />
+                    <PencilLine className="size-4" />
                     Editar / Solicitar alteração
                   </Button>
                 )}
@@ -421,7 +422,7 @@ export function ApprovalBoard({
               if (midias.length === 0 && !editavel) return null;
               return (
                 <div className="mt-4">
-                  <p className="mb-2 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     Mídias
                   </p>
                   <MediaGallery
@@ -438,13 +439,10 @@ export function ApprovalBoard({
                 A edição é inline no próprio editor; o popup de salvar (gate) é
                 acionado ao aprovar/reprovar com alterações pendentes. */}
             {editavel && (
-              <div className="mb-3 flex items-start gap-2 rounded-md border border-dashed border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                <PencilLine className="mt-0.5 size-3.5 shrink-0" />
-                <span>
-                  Você pode editar este conteúdo: clique no texto para alterar.
-                  Lembre-se de salvar as alterações antes de aprovar.
-                </span>
-              </div>
+              <Notice tone="warning" icon={PencilLine} className="mb-3">
+                Você pode editar este conteúdo: clique no texto para alterar.
+                Lembre-se de salvar as alterações antes de aprovar.
+              </Notice>
             )}
             <BodyEditor
               key={selected.id}
@@ -462,7 +460,7 @@ export function ApprovalBoard({
             <>
               <aside className="hidden lg:sticky lg:top-20 lg:block lg:self-start">
                 <div className="space-y-3 rounded-lg border bg-muted/40 p-4">
-                  <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                     Sua decisão
                   </p>
                   <div className="flex flex-col gap-3 [&>button]:w-full">
@@ -556,17 +554,13 @@ export function ApprovalBoard({
               aria-expanded={aberta}
               className="mb-2 flex min-h-[2.75rem] w-full items-start justify-between gap-2 px-1 text-left md:pointer-events-none md:cursor-default"
             >
-              <p className="text-xs font-semibold uppercase leading-tight tracking-[0.12em] text-muted-foreground">
+              <p className="text-xs font-semibold uppercase leading-tight tracking-[0.14em] text-muted-foreground">
                 {col.label}
               </p>
               <span className="flex shrink-0 items-center gap-1.5">
                 <Badge
-                  variant={destaque ? "outline" : "secondary"}
-                  className={
-                    destaque
-                      ? "border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
-                      : "text-xs"
-                  }
+                  variant={destaque ? "warning" : "secondary"}
+                  className="text-xs"
                 >
                   {lista.length}
                 </Badge>
@@ -582,7 +576,7 @@ export function ApprovalBoard({
                 aberta ? "flex" : "hidden"
               } ${
                 destaque
-                  ? "border-amber-400/70 shadow-[0_0_14px_-2px_rgba(251,191,36,0.6)] dark:border-amber-300/60 dark:shadow-[0_0_16px_-1px_rgba(252,211,77,0.5)]"
+                  ? "border-amber-400/60 shadow-[0_0_12px_-3px_rgba(251,191,36,0.35)] dark:border-amber-300/50 dark:shadow-[0_0_14px_-3px_rgba(252,211,77,0.3)]"
                   : ""
               }`}
             >
@@ -595,14 +589,11 @@ export function ApprovalBoard({
                   <button
                     key={card.id}
                     onClick={() => selectCard(card.id)}
-                    className="w-full rounded-lg border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent"
+                    className="w-full rounded-md border bg-card px-3 py-2.5 text-left transition-colors hover:bg-accent"
                   >
                     <div className="mb-1.5 flex flex-wrap gap-1.5">
                       {alteracaoRecente(card.solicitacaoEm) && (
-                        <Badge
-                          variant="outline"
-                          className="border-amber-500/50 bg-amber-500/15 text-xs font-semibold text-amber-700 dark:text-amber-400"
-                        >
+                        <Badge variant="warning" className="text-xs">
                           Alteração solicitada
                         </Badge>
                       )}
@@ -615,10 +606,7 @@ export function ApprovalBoard({
                         </Badge>
                       )}
                       {mostraAjustes(card) && (
-                        <Badge
-                          variant="outline"
-                          className="border-orange-500/60 bg-orange-500/15 text-xs font-semibold text-orange-700 dark:text-orange-400"
-                        >
+                        <Badge variant="secondary" className="text-xs">
                           {card.ajustes}{" "}
                           {card.ajustes === 1 ? "ajuste" : "ajustes"}
                         </Badge>
@@ -640,7 +628,7 @@ export function ApprovalBoard({
       <AlertDialog open={welcomeOpen} onOpenChange={setWelcomeOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogMedia className="bg-amber-500/15 text-amber-600 dark:text-amber-400">
+            <AlertDialogMedia className="bg-warning/15 text-warning">
               <BellRing />
             </AlertDialogMedia>
             <AlertDialogTitle>Conteúdos aguardando você</AlertDialogTitle>
@@ -659,10 +647,7 @@ export function ApprovalBoard({
                   className="flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2"
                 >
                   <span className="text-sm font-medium">{p.label}</span>
-                  <Badge
-                    variant="outline"
-                    className="shrink-0 border-amber-500/50 bg-amber-500/15 font-semibold text-amber-700 dark:text-amber-400"
-                  >
+                  <Badge variant="warning" className="shrink-0">
                     {p.count} {p.count === 1 ? "conteúdo" : "conteúdos"}
                   </Badge>
                 </li>

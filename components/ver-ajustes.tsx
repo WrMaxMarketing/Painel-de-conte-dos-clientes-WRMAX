@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ImageOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Paperclip } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { listarAjustes } from "@/app/actions";
@@ -44,13 +44,13 @@ export function VerAjustes({
   }
 
   return (
-    <div className="rounded-lg border bg-muted/30">
+    <div className="overflow-hidden rounded-lg border bg-muted/40">
       <button
         type="button"
         onClick={toggle}
         aria-expanded={aberto}
         aria-controls={`ajustes-panel-${pageId}`}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60 active:bg-muted"
       >
         <span className="text-sm font-semibold">
           Ver ajustes{" "}
@@ -97,9 +97,7 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
   return (
     <div className="rounded-md border bg-card p-3">
       {data && (
-        <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-          {data}
-        </p>
+        <p className="mb-1.5 text-xs text-muted-foreground">{data}</p>
       )}
       <p className="whitespace-pre-line break-words text-sm">{item.texto}</p>
 
@@ -125,7 +123,7 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
                 rel="noopener noreferrer"
                 className="inline-flex min-h-11 items-center gap-1 rounded-md border bg-background px-3 py-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground md:min-h-0"
               >
-                <ImageOff className="size-3" />
+                <Paperclip className="size-3" />
                 Anexo
               </a>
             )

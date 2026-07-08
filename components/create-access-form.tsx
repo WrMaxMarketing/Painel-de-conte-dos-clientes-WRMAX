@@ -69,7 +69,7 @@ export function CreateAccessForm({ clientes }: { clientes: string[] }) {
             type="button"
             onClick={() => setMostrarSenha((v) => !v)}
             aria-label={mostrarSenha ? "Ocultar senha" : "Mostrar senha"}
-            className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
+            className="absolute inset-y-0 right-0 m-0.5 flex w-11 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
           >
             {mostrarSenha ? (
               <EyeOff className="size-4" />
@@ -102,7 +102,7 @@ export function CreateAccessForm({ clientes }: { clientes: string[] }) {
         </p>
       )}
       {state.success && (
-        <p className="text-sm text-emerald-600 dark:text-emerald-500" role="status">
+        <p className="text-sm font-medium text-success" role="status">
           {state.success}
         </p>
       )}

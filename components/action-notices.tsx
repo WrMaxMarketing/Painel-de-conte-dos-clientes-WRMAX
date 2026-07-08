@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle } from "lucide-react";
+import { Clock } from "lucide-react";
+import { Notice } from "@/components/ui/notice";
 import type { ColunaModo } from "@/lib/board";
 
 // Hora atual (0-23) no fuso de Sao Paulo, independente do fuso do servidor.
@@ -33,31 +34,19 @@ export function ActionNotices({ modo }: { modo: ColunaModo }) {
 
   if (modo === "leitura") return null;
 
-  // Avisos informativos (não bloqueiam) usam âmbar/atenção — mesmo padrão do
-  // restante do app; vermelho fica reservado para erros/bloqueios reais.
-  const box =
-    "flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm font-medium text-amber-700 dark:text-amber-300";
-
   return (
     <div className="space-y-2">
       {modo === "aprovar" && (
-        <div className={box}>
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <span>
-            Atenção: são aceitas apenas <strong>2 alterações</strong>.
-            Alterações adicionais serão cobradas como taxa extra.
-          </span>
-        </div>
+        <Notice tone="warning">
+          Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
+          adicionais serão cobradas como taxa extra.
+        </Notice>
       )}
       {foraHorario && (
-        <div className={box}>
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-          <span>
-            Fora do horário útil (17h–08h): alterações, aprovações ou
-            solicitações feitas agora só serão aplicadas no próximo horário útil
-            (08h–17h).
-          </span>
-        </div>
+        <Notice tone="info" icon={Clock}>
+          Fora do horário útil (17h–08h): alterações, aprovações ou solicitações
+          feitas agora só serão aplicadas no próximo horário útil (08h–17h).
+        </Notice>
       )}
     </div>
   );

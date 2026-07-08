@@ -5,8 +5,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { ModeToggle } from "@/components/mode-toggle";
+import { AppHeader } from "@/components/app-header";
+import { AuthCard } from "@/components/auth-card";
 import { AdminLogin } from "@/components/admin-login";
 import { CreateAccessForm } from "@/components/create-access-form";
 import { isAdmin } from "@/lib/admin";
@@ -24,18 +25,13 @@ export default async function AdminPage() {
         <div className="absolute right-3 top-[max(0.75rem,env(safe-area-inset-top))]">
           <ModeToggle />
         </div>
-        <Card className="w-full max-w-sm">
-          <CardHeader className="text-center">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              WRMAX MARKETING & IA · Admin
-            </p>
-            <CardTitle className="text-xl">Painel do administrador</CardTitle>
-            <CardDescription>Acesso restrito.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AdminLogin />
-          </CardContent>
-        </Card>
+        <AuthCard
+          eyebrow="WRMAX MARKETING & IA · Admin"
+          title="Painel do administrador"
+          description="Acesso restrito."
+        >
+          <AdminLogin />
+        </AuthCard>
       </main>
     );
   }
@@ -44,29 +40,15 @@ export default async function AdminPage() {
 
   return (
     <main className="flex-1">
-      <header className="border-b bg-card pt-[env(safe-area-inset-top)]">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <div>
-            <p className="text-base font-semibold tracking-tight sm:text-lg">
-              WRMAX MARKETING & IA · Admin
-            </p>
-            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
-              Gerenciar acessos
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ModeToggle />
-            <form action={adminLogout}>
-              <Button type="submit" variant="ghost">
-                Sair
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        eyebrow="WRMAX MARKETING & IA · Admin"
+        title="Gerenciar acessos"
+        signOutAction={adminLogout}
+        maxWidth="2xl"
+      />
 
-      <section className="mx-auto max-w-md px-4 py-8 sm:px-6 sm:py-12">
-        <Card>
+      <section className="mx-auto max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
+        <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Criar novo acesso do cliente</CardTitle>
             <CardDescription>

@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
+import { AppHeader } from "@/components/app-header";
 import { ApprovalBoard } from "@/components/approval-board";
 import { getCardsBoard, getBlocks } from "@/lib/notion";
 import { createClient } from "@/lib/supabase/server";
@@ -39,31 +38,12 @@ export default async function Home() {
   return (
     <main className="flex-1">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b bg-card/95 pt-[env(safe-area-inset-top)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <div>
-            <p className="text-base font-semibold tracking-tight sm:text-lg">
-              WRMAX MARKETING & IA
-            </p>
-            <p className="text-[0.7rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
-              Aprovação de Conteúdos
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <ModeToggle />
-            <form action={signOut}>
-              <Button type="submit" variant="ghost">
-                Sair
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <AppHeader title="Aprovação de Conteúdos" signOutAction={signOut} />
 
       {/* Saudação */}
       <section className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 sm:pt-12">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
-          Olá, {cliente || "cliente"}
+          Olá, <span className="capitalize">{cliente || "cliente"}</span>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
           Acompanhe os conteúdos por etapa. Revise e aprove os que estão
@@ -76,7 +56,7 @@ export default async function Home() {
         {cliente ? (
           <ApprovalBoard cards={cards} sessionExpiresAt={sessionExpiresAt} />
         ) : (
-          <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
+          <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
             <p className="text-lg font-semibold">Conta sem cliente associado</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               Sua conta ainda não está vinculada a um cliente. Contate o

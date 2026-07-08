@@ -68,11 +68,11 @@ export function MediaGallery({
   return (
     <div className="space-y-3">
       {arquivos.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {arquivos.map((f, i) => (
             <figure
               key={`${f.name}-${i}`}
-              className="group relative overflow-hidden rounded-lg border bg-card"
+              className="relative overflow-hidden rounded-lg border bg-card"
             >
               {f.kind === "image" ? (
                 <ZoomableImage
@@ -85,12 +85,12 @@ export function MediaGallery({
                   src={f.url}
                   controls
                   preload="metadata"
-                  className="aspect-square w-full bg-black object-contain"
+                  className="aspect-square w-full bg-muted object-contain"
                 />
               ) : (
-                <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 p-3 text-center text-muted-foreground">
+                // Arquivo genérico: só o ícone (o nome aparece na figcaption).
+                <div className="flex aspect-square w-full items-center justify-center bg-muted text-muted-foreground">
                   <FileText className="size-8" />
-                  <span className="line-clamp-2 break-all text-xs">{f.name}</span>
                 </div>
               )}
 
@@ -100,7 +100,7 @@ export function MediaGallery({
                   onClick={() => onRemove(i, f.name)}
                   disabled={ocupado}
                   aria-label={`Remover ${f.name}`}
-                  className="absolute right-1 top-1 rounded-full bg-background/80 p-2.5 text-muted-foreground backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground active:bg-destructive active:text-destructive-foreground disabled:opacity-50 md:p-1"
+                  className="absolute right-1 top-1 rounded-md bg-background/80 p-2 text-muted-foreground backdrop-blur transition-colors hover:bg-destructive hover:text-destructive-foreground active:bg-destructive active:text-destructive-foreground disabled:opacity-50 md:p-1"
                 >
                   <X className="size-4" />
                 </button>
@@ -120,7 +120,7 @@ export function MediaGallery({
                   rel="noopener noreferrer"
                   download={f.name}
                   aria-label={`Baixar ${f.name}`}
-                  className="shrink-0 rounded p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground md:p-1"
+                  className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground md:p-1"
                 >
                   <Download className="size-4" />
                 </a>
@@ -151,7 +151,7 @@ export function MediaGallery({
             onClick={() => inputRef.current?.click()}
             className="w-full sm:w-auto"
           >
-            <Plus className="mr-1 size-4" />
+            <Plus className="size-4" />
             {uploading ? "Enviando…" : "Adicionar mídia"}
           </Button>
         </div>
