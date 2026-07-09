@@ -1,17 +1,34 @@
 "use client";
 
-import { useRef, useState, useTransition, type ChangeEvent } from "react";
+import {
+  useRef,
+  useState,
+  useTransition,
+  type ChangeEvent,
+  type DragEvent,
+} from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileText, Film, Plus, X } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Film,
+  Link as LinkIcon,
+  Play,
+  UploadCloud,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { removerArquivo } from "@/app/actions";
 import type { MediaFile } from "@/lib/notion";
 
-// Exibe as midias da propriedade "Files & media": imagens e videos com preview
-// inline, demais arquivos como anexo. Todos com link de download.
-// Em `editable` (etapa "Conteúdo para aprovação") permite adicionar/remover.
+// Exibe as midias da propriedade "Files & media": imagens e videos hospedados com
+// preview inline, links externos (vídeo do Drive/YouTube) como cartão de link, e
+// demais arquivos como anexo. Em `editable` (etapa "Conteúdo para aprovação")
+// permite adicionar por arraste/clique, colar um link de vídeo, e remover.
 export function MediaGallery({
   arquivos,
   editable = false,
@@ -25,26 +42,63 @@ export function MediaGallery({
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [removing, startRemove] = useTransition();
-  const ocupado = uploading || removing;
+  const [dragging, setDragging] = useState(false);
+  const [link, setLink] = useState("");
+  const [enviandoLink, setEnviandoLink] = useState(false);
+  const ocupado = uploading || removing || enviandoLink;
 
-  async function onPick(e: ChangeEvent<HTMLInputElement>) {
-    const lista = e.target.files;
-    if (!lista?.length || !pageId) return;
+  // Sobe os arquivos escolhidos (por clique ou arraste) para o Notion.
+  async function enviarArquivos(lista: FileList | File[]) {
+    const files = Array.from(lista);
+    if (!files.length || !pageId) return;
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append("pageId", pageId);
-      for (const f of Array.from(lista)) fd.append("file", f);
+      for (const f of files) fd.append("file", f);
       const res = await fetch("/api/cards/files", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error ?? "Falha no upload.");
-      toast.success("Mídia adicionada.");
+      toast.success(files.length > 1 ? "Mídias adicionadas." : "Mídia adicionada.");
       router.refresh();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Não foi possível enviar.");
     } finally {
       setUploading(false);
       if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  function onPick(e: ChangeEvent<HTMLInputElement>) {
+    if (e.target.files?.length) enviarArquivos(e.target.files);
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    setDragging(false);
+    if (ocupado) return;
+    if (e.dataTransfer.files?.length) enviarArquivos(e.dataTransfer.files);
+  }
+
+  // Salva o link de vídeo como item externo no Files & media (por baixo dos panos).
+  async function enviarLink() {
+    const url = link.trim();
+    if (!url || !pageId) return;
+    setEnviandoLink(true);
+    try {
+      const fd = new FormData();
+      fd.append("pageId", pageId);
+      fd.append("link", url);
+      const res = await fetch("/api/cards/files", { method: "POST", body: fd });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? "Não foi possível adicionar o link.");
+      toast.success("Link de vídeo adicionado.");
+      setLink("");
+      router.refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível adicionar o link.");
+    } finally {
+      setEnviandoLink(false);
     }
   }
 
@@ -63,10 +117,17 @@ export function MediaGallery({
     });
   }
 
-  if (!arquivos.length && !editable) return null;
+  const vazio = arquivos.length === 0;
+  if (vazio && !editable) {
+    return (
+      <p className="rounded-lg border border-dashed bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
+        Nenhuma mídia neste conteúdo.
+      </p>
+    );
+  }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {arquivos.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {arquivos.map((f, i) => (
@@ -74,7 +135,20 @@ export function MediaGallery({
               key={`${f.name}-${i}`}
               className="relative overflow-hidden rounded-lg border bg-card"
             >
-              {f.kind === "image" ? (
+              {f.external ? (
+                // Link externo (vídeo do Drive/YouTube): cartão clicável, sem player.
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-muted/60 px-3 text-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <span className="flex size-11 items-center justify-center rounded-full bg-primary/15 text-foreground">
+                    <Play className="size-5" />
+                  </span>
+                  <span className="text-xs font-medium">Abrir vídeo</span>
+                </a>
+              ) : f.kind === "image" ? (
                 <ZoomableImage
                   src={f.url}
                   alt={f.name}
@@ -106,10 +180,14 @@ export function MediaGallery({
                 </button>
               )}
 
-              {/* Rodape: nome + download */}
+              {/* Rodape: nome + acao (abrir link externo / baixar arquivo) */}
               <figcaption className="flex items-center justify-between gap-2 border-t bg-card/80 px-2 py-1.5">
                 <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
-                  {f.kind === "video" && <Film className="size-3 shrink-0" />}
+                  {f.external ? (
+                    <LinkIcon className="size-3 shrink-0" />
+                  ) : (
+                    f.kind === "video" && <Film className="size-3 shrink-0" />
+                  )}
                   <span className="truncate" title={f.name}>
                     {f.name}
                   </span>
@@ -118,11 +196,17 @@ export function MediaGallery({
                   href={f.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  download={f.name}
-                  aria-label={`Baixar ${f.name}`}
+                  {...(f.external ? {} : { download: f.name })}
+                  aria-label={
+                    f.external ? `Abrir ${f.name}` : `Baixar ${f.name}`
+                  }
                   className="shrink-0 rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground md:p-1"
                 >
-                  <Download className="size-4" />
+                  {f.external ? (
+                    <ExternalLink className="size-4" />
+                  ) : (
+                    <Download className="size-4" />
+                  )}
                 </a>
               </figcaption>
             </figure>
@@ -131,12 +215,8 @@ export function MediaGallery({
       )}
 
       {editable && (
-        <div>
-          {arquivos.length === 0 && (
-            <p className="mb-2 text-xs text-muted-foreground">
-              Nenhuma mídia ainda. Adicione imagens ou vídeos abaixo.
-            </p>
-          )}
+        <div className="space-y-3">
+          {/* Caminho 1: enviar arquivo (arraste ou clique). Estado vazio convida. */}
           <input
             ref={inputRef}
             type="file"
@@ -144,16 +224,72 @@ export function MediaGallery({
             className="hidden"
             onChange={onPick}
           />
-          <Button
+          <button
             type="button"
-            variant="outline"
             disabled={ocupado}
             onClick={() => inputRef.current?.click()}
-            className="w-full sm:w-auto"
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!ocupado) setDragging(true);
+            }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={onDrop}
+            className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors disabled:opacity-60 ${
+              dragging
+                ? "border-primary bg-primary/10"
+                : "border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50"
+            }`}
           >
-            <Plus className="size-4" />
-            {uploading ? "Enviando…" : "Adicionar mídia"}
-          </Button>
+            <UploadCloud className="size-6 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">
+              {uploading
+                ? "Enviando…"
+                : vazio
+                  ? "Nenhuma mídia ainda. Arraste ou clique para adicionar"
+                  : "Arraste ou clique para adicionar"}
+            </span>
+            <span className="text-xs text-muted-foreground">
+              Enviar arquivo — até 20 MB (limite do Notion)
+            </span>
+          </button>
+
+          {/* Caminho 2: link de vídeo (Drive/YouTube), p/ arquivos grandes. */}
+          <div className="space-y-1.5">
+            <label
+              htmlFor="link-video"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              Link do vídeo (Drive/YouTube)
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="link-video"
+                type="url"
+                inputMode="url"
+                value={link}
+                disabled={ocupado}
+                onChange={(e) => setLink(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    enviarLink();
+                  }
+                }}
+                placeholder="Cole aqui o link do vídeo…"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={ocupado || !link.trim()}
+                onClick={enviarLink}
+                className="shrink-0"
+              >
+                <LinkIcon className="size-4" />
+                {enviandoLink ? "Adicionando…" : "Adicionar link"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

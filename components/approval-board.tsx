@@ -20,7 +20,6 @@ import { Notice } from "@/components/ui/notice";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -88,6 +87,17 @@ function formatoBadgeClass(formato: string): string {
   return "border-border bg-muted text-muted-foreground";
 }
 
+// Estilo da aba (Texto/Mídias): sublinhado discreto estilo Linear/Notion. Ativa
+// usa o amarelo da marca no sublinhado; inativa fica em cinza com hover.
+function tabClass(active: boolean): string {
+  return [
+    "-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm transition-colors",
+    active
+      ? "border-primary font-semibold text-foreground"
+      : "border-transparent font-medium text-muted-foreground hover:text-foreground",
+  ].join(" ");
+}
+
 export function ApprovalBoard({
   cards,
   sessionExpiresAt = null,
@@ -101,6 +111,9 @@ export function ApprovalBoard({
   // Etapa "Concluído Designer/Arte": abre o formulário de edição (texto + mídias)
   // pelo botão do topo. Fica fechado por padrão.
   const [editando, setEditando] = useState(false);
+  // Aba ativa do card (conteúdo separado em "Texto" e "Mídias"). O padrão muda
+  // por etapa e é definido no efeito abaixo ao abrir um card.
+  const [tab, setTab] = useState<"texto" | "midias">("texto");
   // Mobile: cada etapa é um dropdown (accordion) — guarda o status da etapa
   // aberta; abrir outra fecha a anterior. No desktop as colunas ignoram isto.
   const [colunaAberta, setColunaAberta] = useState<string | null>(null);
@@ -213,6 +226,19 @@ export function ApprovalBoard({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Define a aba padrão ao abrir um card: etapas cuja mídia é a entrega
+  // ("editado": arte finalizada / para publicar) abrem em Mídias; as demais
+  // (briefing e conteúdo aprovado) abrem em Texto. Só reage à troca de card.
+  useEffect(() => {
+    if (!selected) return;
+    const editadoSrc = midiaDoStatus(selected.status) === "editado";
+    const mids = editadoSrc ? selected.arquivosEditados : selected.arquivos;
+    const podeEditar = modoDoStatus(selected.status) === "aprovar";
+    const podeMidias = podeEditar || mids.length > 0;
+    setTab(podeMidias && editadoSrc ? "midias" : "texto");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   function doAprovar(card: Card) {
     const acaoModo = modoDoStatus(card.status);
@@ -349,33 +375,37 @@ export function ApprovalBoard({
         >
           {/* Conteúdo */}
           <article className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              {selected.formato && (
-                <Badge
-                  variant="outline"
-                  className={`font-semibold ${formatoBadgeClass(selected.formato)}`}
-                >
-                  {selected.formato}
-                </Badge>
-              )}
-              {selected.status && (
-                <Badge variant="outline" className="text-muted-foreground">
-                  {selected.status}
-                </Badge>
-              )}
-              {alteracaoRecente(selected.solicitacaoEm) && (
-                <Badge variant="warning">Alteração solicitada</Badge>
-              )}
-              {mostraAjustes(selected) && (
-                <Badge variant="secondary">
-                  {selected.ajustes}{" "}
-                  {selected.ajustes === 1 ? "ajuste" : "ajustes"}
-                </Badge>
-              )}
-            </div>
-            <h2 className="mt-3 text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
+            {/* Título em destaque; metadados leves logo abaixo (menos pills). */}
+            {(selected.formato || alteracaoRecente(selected.solicitacaoEm)) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {selected.formato && (
+                  <Badge
+                    variant="outline"
+                    className={`font-semibold ${formatoBadgeClass(selected.formato)}`}
+                  >
+                    {selected.formato}
+                  </Badge>
+                )}
+                {alteracaoRecente(selected.solicitacaoEm) && (
+                  <Badge variant="warning">Alteração solicitada</Badge>
+                )}
+              </div>
+            )}
+            <h2 className="mt-2.5 text-2xl font-semibold leading-tight tracking-tight sm:text-[1.75rem]">
               {selected.titulo}
             </h2>
+            {(selected.status || mostraAjustes(selected)) && (
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {selected.status}
+                {mostraAjustes(selected) && (
+                  <>
+                    {selected.status ? " · " : ""}
+                    {selected.ajustes}{" "}
+                    {selected.ajustes === 1 ? "ajuste" : "ajustes"}
+                  </>
+                )}
+              </p>
+            )}
 
             {/* Etapa "Concluído Designer/Arte": edição pelo topo. O botão abre o
                 formulário (texto + mídias); antes ficava fixo no rodapé. */}
@@ -419,39 +449,73 @@ export function ApprovalBoard({
                 midiaDoStatus(selected.status) === "editado"
                   ? selected.arquivosEditados
                   : selected.arquivos;
-              if (midias.length === 0 && !editavel) return null;
-              return (
-                <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                    Mídias
-                  </p>
-                  <MediaGallery
-                    arquivos={midias}
-                    editable={editavel}
+              // Aba Mídias existe quando há o que mostrar ou quando o cliente pode
+              // adicionar (etapa editável). Senão, exibe só o texto, sem abas.
+              const showMidias = editavel || midias.length > 0;
+
+              // Painel de texto: fica SEMPRE montado (togglado por `hidden`) para
+              // não desmontar o editor e perder edições não salvas ao trocar de aba.
+              const painelTexto = (
+                <div className={tab === "texto" ? "" : "hidden"}>
+                  {editavel && (
+                    <Notice tone="warning" icon={PencilLine} className="mb-3">
+                      Você pode editar este conteúdo: clique no texto para
+                      alterar. Lembre-se de salvar as alterações antes de aprovar.
+                    </Notice>
+                  )}
+                  <BodyEditor
+                    key={selected.id}
                     pageId={selected.id}
+                    blocks={selected.blocks}
+                    readOnly={!editavel}
+                    onDirtyChange={editavel ? handleDirty : undefined}
+                    onReady={editavel ? handleReady : undefined}
                   />
                 </div>
               );
-            })()}
 
-            <Separator className="my-4 sm:my-5" />
-            {/* Etapa "Conteúdo para aprovar": deixa claro que o corpo é editável.
-                A edição é inline no próprio editor; o popup de salvar (gate) é
-                acionado ao aprovar/reprovar com alterações pendentes. */}
-            {editavel && (
-              <Notice tone="warning" icon={PencilLine} className="mb-3">
-                Você pode editar este conteúdo: clique no texto para alterar.
-                Lembre-se de salvar as alterações antes de aprovar.
-              </Notice>
-            )}
-            <BodyEditor
-              key={selected.id}
-              pageId={selected.id}
-              blocks={selected.blocks}
-              readOnly={!editavel}
-              onDirtyChange={editavel ? handleDirty : undefined}
-              onReady={editavel ? handleReady : undefined}
-            />
+              if (!showMidias) return <div className="mt-5">{painelTexto}</div>;
+
+              return (
+                <div className="mt-5">
+                  <div role="tablist" className="flex gap-1 border-b">
+                    <button
+                      role="tab"
+                      type="button"
+                      aria-selected={tab === "texto"}
+                      onClick={() => setTab("texto")}
+                      className={tabClass(tab === "texto")}
+                    >
+                      Texto
+                    </button>
+                    <button
+                      role="tab"
+                      type="button"
+                      aria-selected={tab === "midias"}
+                      onClick={() => setTab("midias")}
+                      className={tabClass(tab === "midias")}
+                    >
+                      Mídias
+                      {midias.length > 0 && (
+                        <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
+                          {midias.length}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                  <div className="pt-4">
+                    {painelTexto}
+                    <div className={tab === "midias" ? "" : "hidden"}>
+                      <MediaGallery
+                        arquivos={midias}
+                        editable={editavel}
+                        pageId={selected.id}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </article>
 
           {/* Ações. Desktop: painel lateral sticky. Mobile: barra fixa no rodapé
@@ -538,7 +602,7 @@ export function ApprovalBoard({
   // cards empilhados na vertical; abrir uma etapa fecha a anterior.
   return (
     <>
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-4 md:items-start">
       {COLUNAS.map((col) => {
         const lista = grupos.get(col.status) ?? [];
         // Etapas de aprovacao com conteudos pendentes ganham uma borda com brilho

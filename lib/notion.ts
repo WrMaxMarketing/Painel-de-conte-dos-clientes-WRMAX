@@ -25,6 +25,9 @@ export type MediaFile = {
   name: string;
   url: string;
   kind: MediaKind;
+  // Entrada externa (link colado, ex.: vídeo do Drive/YouTube) e não um arquivo
+  // hospedado no Notion. A galeria a exibe como cartão de link (abre em nova aba).
+  external?: boolean;
 };
 
 const IMAGE_EXT = ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif", "bmp", "heic"];
@@ -44,9 +47,10 @@ function getArquivos(props: any, propName: string = PROP_FILES): MediaFile[] {
   if (prop?.type !== "files") return [];
   return (prop.files ?? [])
     .map((f: any) => {
-      const url = f.type === "external" ? f.external?.url : f.file?.url;
+      const external = f.type === "external";
+      const url = external ? f.external?.url : f.file?.url;
       const name = f.name ?? "arquivo";
-      return { name, url: url ?? "", kind: kindFromName(name) };
+      return { name, url: url ?? "", kind: kindFromName(name), external };
     })
     .filter((f: MediaFile) => f.url);
 }

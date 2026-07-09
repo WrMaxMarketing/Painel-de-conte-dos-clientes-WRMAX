@@ -77,11 +77,11 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
-  /* Semânticos: success (verde), warning (âmbar = família do amarelo da marca),
-     info (azul). Foreground escuro para preenchimentos claros. */
+  /* Semânticos: success (verde), warning (âmbar-laranja, hue afastada do amarelo
+     da marca ~96 p/ não competir), info (azul). Foreground p/ preenchimentos. */
   --success: oklch(0.55 0.14 155);
   --success-foreground: oklch(0.985 0 0);
-  --warning: oklch(0.6 0.13 75);
+  --warning: oklch(0.62 0.15 62);
   --warning-foreground: oklch(0.985 0 0);
   --info: oklch(0.55 0.14 245);
   --info-foreground: oklch(0.985 0 0);
@@ -118,13 +118,14 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.75 0 0);
+  /* Contraste maior do cinza sobre preto (leitura no celular, cliente leigo). */
+  --muted-foreground: oklch(0.8 0 0);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --success: oklch(0.72 0.15 155);
   --success-foreground: oklch(0.205 0 0);
-  --warning: oklch(0.83 0.15 85);
+  --warning: oklch(0.8 0.16 62);
   --warning-foreground: oklch(0.205 0 0);
   --info: oklch(0.7 0.13 240);
   --info-foreground: oklch(0.205 0 0);
