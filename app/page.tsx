@@ -53,27 +53,18 @@ export default async function Home({
       {/* Header */}
       <AppHeader title="Aprovação de Conteúdos" signOutAction={signOut} />
 
-      {/* Saudação */}
-      <section className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 sm:pt-12">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
-          Olá, <span className="capitalize">{cliente || "cliente"}</span>
-        </h1>
-        <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
-          Acompanhe os conteúdos por etapa. Revise e aprove os que estão
-          aguardando você.
-        </p>
-      </section>
-
-      {/* Board */}
-      <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
-        {cliente ? (
-          <HomeViews
-            boardCards={cards}
-            calendarCards={calendarCards}
-            sessionExpiresAt={sessionExpiresAt}
-            initialView={initialView}
-          />
-        ) : (
+      {/* Saudação + abas + vistas vivem no HomeViews: assim a saudação e as abas
+          somem na vista de detalhe do card (só as informações do conteúdo). */}
+      {cliente ? (
+        <HomeViews
+          cliente={cliente}
+          boardCards={cards}
+          calendarCards={calendarCards}
+          sessionExpiresAt={sessionExpiresAt}
+          initialView={initialView}
+        />
+      ) : (
+        <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
           <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
             <p className="text-lg font-semibold">Conta sem cliente associado</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
@@ -81,8 +72,8 @@ export default async function Home({
               administrador para concluir a configuração.
             </p>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </main>
   );
 }

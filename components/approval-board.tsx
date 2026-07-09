@@ -110,6 +110,8 @@ export function ApprovalBoard({
   sessionExpiresAt = null,
   requestOpenId = null,
   onOpenHandled,
+  voltarAoCalendario = false,
+  onCardViewChange,
 }: {
   cards: Card[];
   // Timestamp (ms) em que a sessao de 1h expira; null se desconhecido.
@@ -117,6 +119,12 @@ export function ApprovalBoard({
   // Pedido externo (calendario) para abrir um card por id; limpo via callback.
   requestOpenId?: string | null;
   onOpenHandled?: () => void;
+  // Card aberto a partir do calendario: ajusta o rotulo do botao "Voltar"
+  // (voltar retorna ao calendario, nao ao quadro).
+  voltarAoCalendario?: boolean;
+  // Notifica o pai quando entra/sai da vista de detalhe do card, para esconder
+  // a saudacao e as abas (na vista de card, so as informacoes do conteudo).
+  onCardViewChange?: (aberto: boolean) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -241,6 +249,12 @@ export function ApprovalBoard({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Avisa o pai quando abre/fecha o detalhe do card, para que ele esconda a
+  // saudação e as abas enquanto o cliente está vendo o conteúdo.
+  useEffect(() => {
+    onCardViewChange?.(selectedId !== null);
+  }, [selectedId, onCardViewChange]);
 
   // Abre um card sob demanda (pedido vindo do calendário). Só abre se o card
   // estiver na lista do quadro (etapas visíveis); depois sinaliza que tratou.
@@ -383,7 +397,7 @@ export function ApprovalBoard({
           className="-mx-2 mb-3 inline-flex min-h-11 items-center gap-1 rounded-md px-2 text-sm text-muted-foreground hover:text-foreground"
         >
           <ChevronLeft className="size-4" />
-          Voltar para o quadro
+          {voltarAoCalendario ? "Voltar para o calendário" : "Voltar para o quadro"}
         </button>
 
         {modo !== "leitura" && (
