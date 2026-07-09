@@ -13,6 +13,10 @@
      (definidos no @layer base). Tê-lo como token evita a utilitária font-heading
      "vazia" que Card/AlertDialog já referenciam. */
   --font-heading: var(--font-geist-sans);
+  /* Marca WRMAX (dourado): SÓ identidade/acento — logo, aba ativa, foco,
+     realces. Nunca como fill de botão de ação (esse papel é do --primary). */
+  --color-brand: var(--brand);
+  --color-brand-foreground: var(--brand-foreground);
   /* Tokens semânticos (claro/escuro definidos em :root/.dark). Usados como
      preenchimento (com -foreground) em Button/Badge/Sonner. */
   --color-success: var(--success);
@@ -66,14 +70,18 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  /* Marca WRMAX: amarelo (preenchimento) sobre texto preto. Usado como cor de
-     ação primária e destaque. Base neutra (preto/branco) permanece cinza. */
-  --primary: oklch(0.85 0.17 96);
-  --primary-foreground: oklch(0.205 0 0);
+  /* Ação primária = PRETO da marca (papel único e consistente). O dourado saiu
+     daqui p/ não competir com aprovar (verde) e aviso (âmbar); virou --brand. */
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  /* Dourado da marca: só acento/identidade. Texto preto sobre o dourado. */
+  --brand: oklch(0.85 0.17 96);
+  --brand-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.52 0 0);
+  /* Cinza mais escuro sobre branco: leitura fácil no celular (cliente leigo). */
+  --muted-foreground: oklch(0.45 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -97,8 +105,8 @@
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.85 0.17 96);
-  --sidebar-primary-foreground: oklch(0.205 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
@@ -112,9 +120,12 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  /* Amarelo da marca também no dark (destaca sobre o fundo escuro), texto preto. */
-  --primary: oklch(0.86 0.17 96);
+  /* Ação primária no dark = neutro claro (quase branco) c/ texto escuro: botão
+     de ação nítido sobre o preto. Dourado da marca fica no --brand (acento). */
+  --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.205 0 0);
+  --brand: oklch(0.86 0.17 96);
+  --brand-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
@@ -139,7 +150,7 @@
   --chart-5: oklch(0.68 0.16 300);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.86 0.17 96);
+  --sidebar-primary: oklch(0.985 0 0);
   --sidebar-primary-foreground: oklch(0.205 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);

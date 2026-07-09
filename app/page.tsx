@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppHeader } from "@/components/app-header";
-import { ApprovalBoard } from "@/components/approval-board";
-import { getCardsBoard, getBlocks } from "@/lib/notion";
+import { HomeViews } from "@/components/home-views";
+import { getCardsBoard, getCardsCalendario, getBlocks } from "@/lib/notion";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
@@ -10,7 +10,15 @@ import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
 // Sempre busca fresco do Notion (nao prerenderiza no build).
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  // Next 16: searchParams é assíncrono. Usado só para a vista inicial (?view).
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { view } = await searchParams;
+  const initialView = view === "calendario" ? "calendario" : "quadro";
+
   // Exige sessao (o middleware ja protege, mas garantimos aqui tambem).
   const supabase = await createClient();
   const {
@@ -30,7 +38,12 @@ export default async function Home() {
   // O cliente vem do app_metadata, definido pelo admin (o usuario nao altera).
   const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
 
-  const resumos = cliente ? await getCardsBoard(cliente) : [];
+  // Quadro (etapas visíveis, com blocos do corpo) + calendário (todos os
+  // conteúdos do cliente, enxutos). Buscados em paralelo.
+  const [resumos, calendarCards] = await Promise.all([
+    cliente ? getCardsBoard(cliente) : Promise.resolve([]),
+    cliente ? getCardsCalendario(cliente) : Promise.resolve([]),
+  ]);
   const cards = await Promise.all(
     resumos.map(async (c) => ({ ...c, blocks: await getBlocks(c.id) }))
   );
@@ -54,7 +67,12 @@ export default async function Home() {
       {/* Board */}
       <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         {cliente ? (
-          <ApprovalBoard cards={cards} sessionExpiresAt={sessionExpiresAt} />
+          <HomeViews
+            boardCards={cards}
+            calendarCards={calendarCards}
+            sessionExpiresAt={sessionExpiresAt}
+            initialView={initialView}
+          />
         ) : (
           <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
             <p className="text-lg font-semibold">Conta sem cliente associado</p>

@@ -10,7 +10,7 @@ import {
   setArquivos,
   AJUSTE_SENTINEL,
 } from "@/lib/notion";
-import { modoDoStatus } from "@/lib/board";
+import { labelDoStatus, podeSolicitarAlteracao } from "@/lib/board";
 import { enviarWhatsApp } from "@/lib/whatsapp";
 
 // Solicitacao de alteracao na etapa "Concluido Designer/Arte": texto livre +
@@ -64,12 +64,15 @@ export async function POST(req: Request) {
   if (card.cliente !== cliente) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
-  if (modoDoStatus(card.status) !== "aprovar-arte") {
+  if (!podeSolicitarAlteracao(card.status)) {
     return NextResponse.json(
       { error: "Esta etapa não permite solicitar alteração." },
       { status: 403 }
     );
   }
+  // Etapa em que o pedido foi feito — registrada no comentário, no corpo e no
+  // aviso à equipe (única adição à lógica de solicitação de alteração).
+  const etapa = labelDoStatus(card.status);
 
   try {
     // Sobe cada anexo UMA vez e guarda id + nome + descricao + tipo. O mesmo
@@ -107,8 +110,13 @@ export async function POST(req: Request) {
 
     // 1) Comentarios do Notion. Como a API aceita ate 3 anexos por comentario,
     // agrupamos em blocos de 3. O texto geral vai no primeiro comentario.
+    const linhaEtapa = `📍 Etapa: ${etapa}`;
     if (anexos.length === 0) {
-      await criarComentarioAjuste(pageId, `${AJUSTE_SENTINEL}\n${texto}`, []);
+      await criarComentarioAjuste(
+        pageId,
+        `${AJUSTE_SENTINEL}\n${linhaEtapa}\n${texto}`,
+        []
+      );
     } else {
       for (
         let start = 0;
@@ -117,7 +125,10 @@ export async function POST(req: Request) {
       ) {
         const bloco = anexos.slice(start, start + MAX_ANEXOS_POR_COMENTARIO);
         const linhas = [AJUSTE_SENTINEL];
-        if (start === 0) linhas.push(texto);
+        if (start === 0) {
+          linhas.push(linhaEtapa);
+          linhas.push(texto);
+        }
         rotulos
           .slice(start, start + MAX_ANEXOS_POR_COMENTARIO)
           .forEach((r) => linhas.push(r));
@@ -146,7 +157,7 @@ export async function POST(req: Request) {
     });
     const header = `SOLICITAÇÃO DE ALTERAÇÃO POR ${(
       cliente || "CLIENTE"
-    ).toUpperCase()} DIA ${dataBr}`;
+    ).toUpperCase()} DIA ${dataBr} — ETAPA: ${etapa.toUpperCase()}`;
     const referencias = anexos
       .map((a, i) => ({ n: i + 1, kind: a.kind, descricao: a.descricao }))
       .filter((r) => r.descricao)
@@ -166,6 +177,7 @@ export async function POST(req: Request) {
       "🔔 *Solicitação de alteração*",
       `Cliente: ${cliente || "(sem cliente)"}`,
       `Conteúdo: ${card.titulo}`,
+      `Etapa: ${etapa}`,
       "",
       texto,
       anexos.length ? `📎 ${resumoAnexos} em anexo (ver no painel/Notion).` : "",

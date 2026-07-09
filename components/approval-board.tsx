@@ -13,6 +13,7 @@ import {
   BellRing,
   ChevronDown,
   ChevronLeft,
+  ImageOff,
   PencilLine,
   Sparkles,
 } from "lucide-react";
@@ -36,7 +37,13 @@ import { MediaGallery } from "@/components/media-gallery";
 import { RequestChange } from "@/components/request-change";
 import { VerAjustes } from "@/components/ver-ajustes";
 import { SessionExpiryGuard } from "@/components/session-expiry-guard";
-import { COLUNAS, midiaDoStatus, modoDoStatus, type ColunaModo } from "@/lib/board";
+import {
+  COLUNAS,
+  midiaDoStatus,
+  modoDoStatus,
+  podeSolicitarAlteracao,
+  type ColunaModo,
+} from "@/lib/board";
 import type { EditorApi } from "@/components/body-editor";
 import type { CardResumo } from "@/lib/notion";
 
@@ -52,7 +59,7 @@ const BodyEditor = dynamic(
 );
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Card = CardResumo & { blocks: any[] };
+export type Card = CardResumo & { blocks: any[] };
 
 // O badge "Alteração solicitada" vale 24h a partir do pedido do cliente.
 const VINTE_QUATRO_H = 24 * 60 * 60 * 1000;
@@ -93,7 +100,7 @@ function tabClass(active: boolean): string {
   return [
     "-mb-px inline-flex min-h-11 items-center border-b-2 px-3 text-sm transition-colors",
     active
-      ? "border-primary font-semibold text-foreground"
+      ? "border-brand font-semibold text-foreground"
       : "border-transparent font-medium text-muted-foreground hover:text-foreground",
   ].join(" ");
 }
@@ -101,10 +108,15 @@ function tabClass(active: boolean): string {
 export function ApprovalBoard({
   cards,
   sessionExpiresAt = null,
+  requestOpenId = null,
+  onOpenHandled,
 }: {
   cards: Card[];
   // Timestamp (ms) em que a sessao de 1h expira; null se desconhecido.
   sessionExpiresAt?: number | null;
+  // Pedido externo (calendario) para abrir um card por id; limpo via callback.
+  requestOpenId?: string | null;
+  onOpenHandled?: () => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -140,6 +152,9 @@ export function ApprovalBoard({
     ? modoDoStatus(selected.status)
     : "leitura";
   const editavel = modo === "aprovar";
+  // Solicitar alteração: na "Edição/arte finalizada" e também na "Conteúdo
+  // aprovado" (revisão após o cliente aprovar o briefing).
+  const podeSolicitar = selected ? podeSolicitarAlteracao(selected.status) : false;
 
   // Agrupa os cards por status, na ordem das colunas.
   const grupos = useMemo(() => {
@@ -226,6 +241,15 @@ export function ApprovalBoard({
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // Abre um card sob demanda (pedido vindo do calendário). Só abre se o card
+  // estiver na lista do quadro (etapas visíveis); depois sinaliza que tratou.
+  useEffect(() => {
+    if (!requestOpenId) return;
+    if (cards.some((c) => c.id === requestOpenId)) selectCard(requestOpenId);
+    onOpenHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestOpenId]);
 
   // Define a aba padrão ao abrir um card: etapas cuja mídia é a entrega
   // ("editado": arte finalizada / para publicar) abrem em Mídias; as demais
@@ -333,7 +357,7 @@ export function ApprovalBoard({
     return (
       <>
         <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
-          <Sparkles className="mx-auto mb-3 size-8 text-primary" />
+          <Sparkles className="mx-auto mb-3 size-8 text-brand" />
           <p className="text-2xl font-semibold">Tudo em dia</p>
           <p className="mt-2 text-muted-foreground">
             Nenhum conteúdo na sua esteira no momento.
@@ -407,9 +431,9 @@ export function ApprovalBoard({
               </p>
             )}
 
-            {/* Etapa "Concluído Designer/Arte": edição pelo topo. O botão abre o
-                formulário (texto + mídias); antes ficava fixo no rodapé. */}
-            {modo === "aprovar-arte" && (
+            {/* Solicitar alteração pelo topo — na "Edição/arte finalizada" e na
+                "Conteúdo aprovado". O botão abre o formulário (texto + mídias). */}
+            {podeSolicitar && (
               <div className="mt-4">
                 {editando ? (
                   <RequestChange
@@ -428,7 +452,9 @@ export function ApprovalBoard({
                     onClick={() => setEditando(true)}
                   >
                     <PencilLine className="size-4" />
-                    Editar / Solicitar alteração
+                    {modo === "aprovar-arte"
+                      ? "Editar / Solicitar alteração"
+                      : "Solicitar alteração"}
                   </Button>
                 )}
               </div>
@@ -474,10 +500,29 @@ export function ApprovalBoard({
                 </div>
               );
 
-              if (!showMidias) return <div className="mt-5">{painelTexto}</div>;
+              // Alerta fixo (em TODAS as etapas): quando não há mídias, deixa
+              // explícito para o cliente não achar que faltou carregar. Fica no
+              // topo do conteúdo, visível independente da aba ativa.
+              const alertaSemMidias =
+                midias.length === 0 ? (
+                  <Notice tone="info" icon={ImageOff} className="mb-3">
+                    Este conteúdo não tem mídias.
+                  </Notice>
+                ) : null;
+
+              // Sem aba de Mídias (nada a mostrar e etapa não editável): o card
+              // abre direto no texto, com o alerta acima.
+              if (!showMidias)
+                return (
+                  <div className="mt-5">
+                    {alertaSemMidias}
+                    {painelTexto}
+                  </div>
+                );
 
               return (
                 <div className="mt-5">
+                  {alertaSemMidias}
                   <div role="tablist" className="flex gap-1 border-b">
                     <button
                       role="tab"
@@ -495,12 +540,7 @@ export function ApprovalBoard({
                       onClick={() => setTab("midias")}
                       className={tabClass(tab === "midias")}
                     >
-                      Mídias
-                      {midias.length > 0 && (
-                        <span className="ml-1.5 rounded-full bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground">
-                          {midias.length}
-                        </span>
-                      )}
+                      Mídias{midias.length > 0 ? ` (${midias.length})` : ""}
                     </button>
                   </div>
                   <div className="pt-4">

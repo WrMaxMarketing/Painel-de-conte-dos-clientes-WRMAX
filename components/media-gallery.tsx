@@ -143,7 +143,7 @@ export function MediaGallery({
                   rel="noopener noreferrer"
                   className="flex aspect-square w-full flex-col items-center justify-center gap-2 bg-muted/60 px-3 text-center text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 >
-                  <span className="flex size-11 items-center justify-center rounded-full bg-primary/15 text-foreground">
+                  <span className="flex size-11 items-center justify-center rounded-full bg-brand/15 text-foreground">
                     <Play className="size-5" />
                   </span>
                   <span className="text-xs font-medium">Abrir vídeo</span>
@@ -236,8 +236,8 @@ export function MediaGallery({
             onDrop={onDrop}
             className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors disabled:opacity-60 ${
               dragging
-                ? "border-primary bg-primary/10"
-                : "border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50"
+                ? "border-brand bg-brand/10"
+                : "border-border bg-muted/30 hover:border-brand/60 hover:bg-muted/50"
             }`}
           >
             <UploadCloud className="size-6 text-muted-foreground" />

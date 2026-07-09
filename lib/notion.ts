@@ -13,6 +13,7 @@ const PROP_FILES = "Files & media"; // tipo: files (fotos/videos/anexos)
 const PROP_FILES_EDITADO = "ARQUIVO EDITADO PRONTO"; // tipo: files — arte/edicao finalizada (etapa "Concluido Designer/Arte")
 const PROP_AJUSTES = "🔁 Nº de Ajustes"; // tipo: number — contagem de alteracoes
 const PROP_SOLICITACAO = "Solicitação de alteração"; // tipo: date — quando foi pedida (badge de 24h)
+const PROP_DATA = "Data"; // tipo: date — data editorial do conteudo (calendario)
 
 function getTitle(props: any): string {
   const titleProp = Object.values(props).find((p: any) => p.type === "title") as any;
@@ -68,6 +69,8 @@ export type CardResumo = {
   // pelo badge "Alteração solicitada" (vale 24h) no quadro.
   ajustes: number;
   solicitacaoEm: string | null;
+  // Data editorial (propriedade "Data") — posiciona o card no calendario. ISO.
+  data: string | null;
 };
 
 function getAjustes(props: any): number {
@@ -76,6 +79,12 @@ function getAjustes(props: any): number {
 
 function getSolicitacaoEm(props: any): string | null {
   return props?.[PROP_SOLICITACAO]?.date?.start ?? null;
+}
+
+// Data editorial do conteudo (propriedade "Data"), usada no calendario. ISO
+// (YYYY-MM-DD ou com hora). null quando o card ainda nao tem data marcada.
+function getData(props: any): string | null {
+  return props?.[PROP_DATA]?.date?.start ?? null;
 }
 
 // Lista os valores do select "Cliente" (para o seletor no painel admin).
@@ -113,7 +122,46 @@ export async function getCardsBoard(cliente: string): Promise<CardResumo[]> {
     arquivosEditados: getArquivos(page.properties, PROP_FILES_EDITADO),
     ajustes: getAjustes(page.properties),
     solicitacaoEm: getSolicitacaoEm(page.properties),
+    data: getData(page.properties),
   }));
+}
+
+// Todos os conteudos do cliente (QUALQUER etapa, inclusive as internas que nao
+// aparecem no quadro), enxutos para o calendario: sem arquivos nem blocos. A
+// data vem da propriedade "Data"; cards sem data ainda entram (data: null) para
+// permitir contagem de "sem data". Paginado (a base pode passar de 100 cards).
+export type CardCalendario = {
+  id: string;
+  titulo: string;
+  formato: string | null;
+  status: string | null;
+  data: string | null;
+};
+
+export async function getCardsCalendario(
+  cliente: string
+): Promise<CardCalendario[]> {
+  const out: CardCalendario[] = [];
+  let cursor: string | undefined = undefined;
+  do {
+    const res: any = await notion.databases.query({
+      database_id: DB,
+      filter: { property: PROP_CLIENTE, select: { equals: cliente } },
+      start_cursor: cursor,
+      page_size: 100,
+    });
+    for (const page of res.results as any[]) {
+      out.push({
+        id: page.id,
+        titulo: getTitle(page.properties),
+        formato: page.properties[PROP_FORMATO]?.status?.name ?? null,
+        status: page.properties[PROP_STATUS]?.status?.name ?? null,
+        data: getData(page.properties),
+      });
+    }
+    cursor = res.has_more ? (res.next_cursor as string) : undefined;
+  } while (cursor);
+  return out;
 }
 
 export async function getCard(pageId: string): Promise<CardResumo> {
@@ -127,6 +175,7 @@ export async function getCard(pageId: string): Promise<CardResumo> {
     arquivosEditados: getArquivos(page.properties, PROP_FILES_EDITADO),
     ajustes: getAjustes(page.properties),
     solicitacaoEm: getSolicitacaoEm(page.properties),
+    data: getData(page.properties),
   };
 }
 

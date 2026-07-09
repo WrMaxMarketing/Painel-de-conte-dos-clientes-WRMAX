@@ -95,7 +95,7 @@ function SingleBlock({ block }: { block: any }) {
       );
     case "callout":
       return (
-        <div className="flex items-start gap-2 rounded-md border-l-2 border-primary/60 bg-muted p-3 text-foreground/90">
+        <div className="flex items-start gap-2 rounded-md border-l-2 border-brand/60 bg-muted p-3 text-foreground/90">
           {data.icon?.emoji && (
             <span className="mt-0.5" aria-hidden>
               {data.icon.emoji}

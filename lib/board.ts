@@ -66,6 +66,30 @@ export function modoDoStatus(status: string | null | undefined): ColunaModo {
   return COLUNAS.find((c) => c.status === status)?.modo ?? "leitura";
 }
 
+// Rotulo amigavel da etapa (para exibir/registrar), com fallback no proprio
+// status quando for um valor fora do board.
+export function labelDoStatus(status: string | null | undefined): string {
+  return COLUNAS.find((c) => c.status === status)?.label ?? status ?? "";
+}
+
+// Etapas em que o cliente pode solicitar alteracao: "Edicao/arte finalizada"
+// (aprovar-arte) e tambem "Conteudo aprovado" (revisao apos aprovar o briefing).
+export const STATUS_SOLICITAVEIS = COLUNAS.filter(
+  (c) => c.modo === "aprovar-arte" || c.status === "Conteúdo aprovado"
+).map((c) => c.status);
+
+export function podeSolicitarAlteracao(
+  status: string | null | undefined
+): boolean {
+  return STATUS_SOLICITAVEIS.includes(status ?? "");
+}
+
+// Etapa "interna": qualquer status fora das colunas do quadro. Esses conteudos
+// existem para o cliente no calendario (previa), mas nao abrem como card.
+export function etapaInterna(status: string | null | undefined): boolean {
+  return !BOARD_STATUSES.includes(status ?? "");
+}
+
 // Qual fonte de midia a etapa usa (default "cru" para status fora do board).
 export function midiaDoStatus(status: string | null | undefined): ColunaMidia {
   return COLUNAS.find((c) => c.status === status)?.midia ?? "cru";
