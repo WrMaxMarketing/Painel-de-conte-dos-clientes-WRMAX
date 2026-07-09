@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ImageOff } from "lucide-react";
+import { ChevronDown, ChevronRight, Paperclip } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ZoomableImage } from "@/components/zoomable-image";
 import { listarAjustes } from "@/app/actions";
@@ -44,11 +44,13 @@ export function VerAjustes({
   }
 
   return (
-    <div className="rounded-lg border bg-muted/30">
+    <div className="overflow-hidden rounded-lg border bg-muted/40">
       <button
         type="button"
         onClick={toggle}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+        aria-expanded={aberto}
+        aria-controls={`ajustes-panel-${pageId}`}
+        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left transition-colors hover:bg-muted/60 active:bg-muted"
       >
         <span className="text-sm font-semibold">
           Ver ajustes{" "}
@@ -62,7 +64,10 @@ export function VerAjustes({
       </button>
 
       {aberto && (
-        <div className="space-y-3 border-t px-4 py-3">
+        <div
+          id={`ajustes-panel-${pageId}`}
+          className="space-y-3 border-t px-4 py-3"
+        >
           {carregando && (
             <div className="space-y-2">
               <Skeleton className="h-4 w-1/3" />
@@ -92,11 +97,9 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
   return (
     <div className="rounded-md border bg-card p-3">
       {data && (
-        <p className="mb-1.5 text-xs uppercase tracking-wide text-muted-foreground">
-          {data}
-        </p>
+        <p className="mb-1.5 text-xs text-muted-foreground">{data}</p>
       )}
-      <p className="whitespace-pre-line text-sm">{item.texto}</p>
+      <p className="whitespace-pre-line break-words text-sm">{item.texto}</p>
 
       {item.imagens.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
@@ -104,12 +107,12 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
             img.category === "image" ? (
               <div
                 key={i}
-                className="block overflow-hidden rounded-md border bg-background"
+                className="block max-w-full overflow-hidden rounded-md border bg-background"
               >
                 <ZoomableImage
                   src={img.url}
                   alt="Imagem do ajuste"
-                  className="max-h-40 w-auto object-contain"
+                  className="max-h-40 w-auto max-w-full object-contain"
                 />
               </div>
             ) : (
@@ -118,9 +121,9 @@ function AjusteItem({ item }: { item: AjusteComentario }) {
                 href={img.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
+                className="inline-flex min-h-11 items-center gap-1 rounded-md border bg-background px-3 py-1 text-xs text-muted-foreground hover:text-foreground active:text-foreground md:min-h-0"
               >
-                <ImageOff className="size-3" />
+                <Paperclip className="size-3" />
                 Anexo
               </a>
             )

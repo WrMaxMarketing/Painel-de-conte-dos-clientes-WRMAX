@@ -24,7 +24,7 @@ function RichText({ value }: { value?: RichTextItem[] }) {
         let node: ReactNode = t.plain_text;
         if (a.code) {
           node = (
-            <code className="rounded bg-muted px-1.5 py-0.5 text-[0.85em] text-primary">
+            <code className="rounded-sm bg-muted px-1.5 py-0.5 font-mono text-[0.85em] break-words text-foreground">
               {node}
             </code>
           );
@@ -44,7 +44,7 @@ function RichText({ value }: { value?: RichTextItem[] }) {
               href={t.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-primary underline underline-offset-2 hover:opacity-80"
+              className="font-medium text-info underline underline-offset-2 hover:opacity-80"
             >
               {node}
             </a>
@@ -95,8 +95,12 @@ function SingleBlock({ block }: { block: any }) {
       );
     case "callout":
       return (
-        <div className="flex gap-2 rounded-md bg-muted p-3 text-foreground/90">
-          {data.icon?.emoji && <span aria-hidden>{data.icon.emoji}</span>}
+        <div className="flex items-start gap-2 rounded-md border-l-2 border-brand/60 bg-muted p-3 text-foreground/90">
+          {data.icon?.emoji && (
+            <span className="mt-0.5" aria-hidden>
+              {data.icon.emoji}
+            </span>
+          )}
           <span>
             <RichText value={data.rich_text} />
           </span>
@@ -119,7 +123,7 @@ function SingleBlock({ block }: { block: any }) {
       );
     case "code":
       return (
-        <pre className="overflow-x-auto rounded-md bg-muted p-3 text-sm text-foreground/90">
+        <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-sm text-foreground/90">
           <code>{data.rich_text?.map((t: RichTextItem) => t.plain_text).join("")}</code>
         </pre>
       );
@@ -132,7 +136,7 @@ function SingleBlock({ block }: { block: any }) {
         <ZoomableImage
           src={url}
           alt={data.caption?.map((t: RichTextItem) => t.plain_text).join("") || ""}
-          className="rounded-md border border-border"
+          className="h-auto max-w-full rounded-md border border-border"
         />
       );
     }
@@ -193,5 +197,5 @@ export function NotionBlocks({ blocks }: { blocks: any[] }) {
     i++;
   }
 
-  return <div className="space-y-3 text-[0.95rem]">{out}</div>;
+  return <div className="space-y-3 break-words text-[0.95rem]">{out}</div>;
 }

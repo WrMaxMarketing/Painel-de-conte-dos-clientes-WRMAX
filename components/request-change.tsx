@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Notice } from "@/components/ui/notice";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -180,13 +181,10 @@ export function RequestChange({
         </p>
       </div>
 
-      <div className="flex items-start gap-2 rounded-md border border-red-500/50 bg-red-500/10 px-3 py-2 text-sm font-semibold text-red-600 dark:text-red-400">
-        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-        <span>
-          Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
-          adicionais serão cobradas como taxa extra.
-        </span>
-      </div>
+      <Notice tone="warning">
+        Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
+        adicionais serão cobradas como taxa extra.
+      </Notice>
 
       {ajustes > 0 && (
         <p className="text-xs text-muted-foreground">
@@ -202,6 +200,8 @@ export function RequestChange({
         value={texto}
         onChange={(e) => setTexto(e.target.value)}
         disabled={enviando}
+        maxLength={2000}
+        className="min-h-24"
         placeholder="Descreva aqui a alteração que deseja…"
       />
 
@@ -220,9 +220,9 @@ export function RequestChange({
                       src={a.preview}
                       muted
                       preload="metadata"
-                      className="size-20 rounded bg-black object-cover"
+                      className="size-20 rounded-md bg-muted object-cover"
                     />
-                    <span className="absolute bottom-1 left-1 rounded bg-background/80 p-0.5 text-muted-foreground backdrop-blur">
+                    <span className="absolute bottom-1 left-1 rounded-sm bg-background/80 p-0.5 text-muted-foreground backdrop-blur">
                       <Film className="size-3.5" />
                     </span>
                   </>
@@ -231,15 +231,15 @@ export function RequestChange({
                   <img
                     src={a.preview}
                     alt={a.file.name}
-                    className="size-20 rounded object-cover"
+                    className="size-20 rounded-md object-cover"
                   />
                 )}
                 <button
                   type="button"
                   onClick={() => removerAnexo(a.id)}
                   disabled={enviando}
-                  title="Remover anexo"
-                  className="absolute -right-2 -top-2 rounded-full border bg-background p-1 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground disabled:opacity-50"
+                  aria-label="Remover anexo"
+                  className="absolute -right-2 -top-2 rounded-full border bg-background p-2 text-muted-foreground transition-colors hover:bg-destructive hover:text-destructive-foreground active:bg-destructive active:text-destructive-foreground disabled:opacity-50 md:p-1"
                 >
                   <X className="size-3.5" />
                 </button>
@@ -256,14 +256,15 @@ export function RequestChange({
                         if (e.key === "Enter") toggleDescricao(a.id);
                       }}
                       disabled={enviando}
+                      maxLength={300}
                       placeholder="Onde é e o que fazer (ex.: 0:45 do vídeo, trocar o texto)"
                     />
                     <button
                       type="button"
                       onClick={() => toggleDescricao(a.id)}
                       disabled={enviando}
-                      title="Concluir descrição"
-                      className="shrink-0 rounded-md border p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+                      aria-label="Concluir descrição"
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border text-muted-foreground transition-colors hover:bg-accent hover:text-foreground active:bg-accent active:text-foreground disabled:opacity-50 md:h-8 md:w-8"
                     >
                       <Check className="size-4" />
                     </button>
@@ -273,12 +274,12 @@ export function RequestChange({
                     type="button"
                     onClick={() => toggleDescricao(a.id)}
                     disabled={enviando}
-                    title="Adicionar descrição desta mídia"
-                    className="flex min-w-0 items-center gap-2 text-left text-sm text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                    aria-label="Adicionar descrição desta mídia"
+                    className="flex min-h-11 min-w-0 items-center gap-2 text-left text-sm text-foreground transition-colors hover:text-foreground active:text-foreground disabled:opacity-50 md:min-h-0 md:text-muted-foreground"
                   >
                     <PencilLine className="size-4 shrink-0" />
                     {a.descricao ? (
-                      <span className="truncate">{a.descricao}</span>
+                      <span className="line-clamp-2 break-all">{a.descricao}</span>
                     ) : (
                       <span>Descrever onde esta mídia vai</span>
                     )}
@@ -302,9 +303,9 @@ export function RequestChange({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           disabled={enviando}
           onClick={() => inputRef.current?.click()}
+          className="w-full sm:w-auto"
         >
           <ImagePlus className="mr-1 size-4" />
           {anexos.length ? "Adicionar mais mídias" : "Adicionar imagens ou vídeos"}
@@ -351,7 +352,7 @@ export function RequestChange({
       <AlertDialog open={popupGrande} onOpenChange={setPopupGrande}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogMedia className="bg-red-500/15 text-red-600 dark:text-red-400">
+            <AlertDialogMedia className="bg-warning/15 text-warning">
               <AlertTriangle />
             </AlertDialogMedia>
             <AlertDialogTitle>Arquivo muito grande</AlertDialogTitle>

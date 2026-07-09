@@ -1,9 +1,8 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { ModeToggle } from "@/components/mode-toggle";
-import { ApprovalBoard } from "@/components/approval-board";
-import { getCardsBoard, getBlocks } from "@/lib/notion";
+import { AppHeader } from "@/components/app-header";
+import { HomeViews } from "@/components/home-views";
+import { getCardsBoard, getCardsCalendario, getBlocks } from "@/lib/notion";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/login/actions";
 import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
@@ -11,7 +10,15 @@ import { SESSION_MAX_AGE_MS, SESSION_START_COOKIE } from "@/lib/session";
 // Sempre busca fresco do Notion (nao prerenderiza no build).
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  // Next 16: searchParams é assíncrono. Usado só para a vista inicial (?view).
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { view } = await searchParams;
+  const initialView = view === "calendario" ? "calendario" : "quadro";
+
   // Exige sessao (o middleware ja protege, mas garantimos aqui tambem).
   const supabase = await createClient();
   const {
@@ -31,7 +38,12 @@ export default async function Home() {
   // O cliente vem do app_metadata, definido pelo admin (o usuario nao altera).
   const cliente = (user.app_metadata?.cliente as string | undefined) ?? "";
 
-  const resumos = cliente ? await getCardsBoard(cliente) : [];
+  // Quadro (etapas visíveis, com blocos do corpo) + calendário (todos os
+  // conteúdos do cliente, enxutos). Buscados em paralelo.
+  const [resumos, calendarCards] = await Promise.all([
+    cliente ? getCardsBoard(cliente) : Promise.resolve([]),
+    cliente ? getCardsCalendario(cliente) : Promise.resolve([]),
+  ]);
   const cards = await Promise.all(
     resumos.map(async (c) => ({ ...c, blocks: await getBlocks(c.id) }))
   );
@@ -39,36 +51,12 @@ export default async function Home() {
   return (
     <main className="flex-1">
       {/* Header */}
-      <header className="sticky top-0 z-20 border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:px-6 sm:py-4">
-          <div>
-            <p className="text-base font-semibold tracking-tight sm:text-lg">
-              WRMAX MARKETING & IA
-            </p>
-            <p className="text-[0.65rem] uppercase tracking-[0.2em] text-muted-foreground sm:text-xs">
-              Aprovação de Conteúdos
-            </p>
-          </div>
-          <div className="flex items-center gap-1">
-            <ModeToggle />
-            <form action={signOut}>
-              <Button
-                type="submit"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground"
-              >
-                Sair
-              </Button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <AppHeader title="Aprovação de Conteúdos" signOutAction={signOut} />
 
       {/* Saudação */}
       <section className="mx-auto max-w-5xl px-4 pt-8 sm:px-6 sm:pt-12">
         <h1 className="text-2xl font-semibold tracking-tight sm:text-4xl">
-          Olá, {cliente || "cliente"}
+          Olá, <span className="capitalize">{cliente || "cliente"}</span>
         </h1>
         <p className="mt-2 text-sm text-muted-foreground sm:mt-3 sm:text-base">
           Acompanhe os conteúdos por etapa. Revise e aprove os que estão
@@ -79,9 +67,14 @@ export default async function Home() {
       {/* Board */}
       <section className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-10">
         {cliente ? (
-          <ApprovalBoard cards={cards} sessionExpiresAt={sessionExpiresAt} />
+          <HomeViews
+            boardCards={cards}
+            calendarCards={calendarCards}
+            sessionExpiresAt={sessionExpiresAt}
+            initialView={initialView}
+          />
         ) : (
-          <div className="rounded-lg border bg-muted/40 px-6 py-16 text-center">
+          <div className="rounded-xl border bg-card px-6 py-16 text-center shadow-sm ring-1 ring-foreground/10">
             <p className="text-lg font-semibold">Conta sem cliente associado</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
               Sua conta ainda não está vinculada a um cliente. Contate o

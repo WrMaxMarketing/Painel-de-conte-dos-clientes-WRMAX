@@ -21,6 +21,7 @@ export function LoginForm() {
           type="email"
           autoComplete="email"
           placeholder="voce@empresa.com"
+          disabled={pending}
           required
         />
       </div>
@@ -31,6 +32,7 @@ export function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          disabled={pending}
           required
         />
       </div>
