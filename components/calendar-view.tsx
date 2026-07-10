@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Lock, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,23 @@ export function CalendarView({
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth()); // 0-11
   const [diaSel, setDiaSel] = useState<string | null>(null);
+  // No mobile a prévia fica empilhada abaixo do calendário, fora da vista. Ao
+  // escolher um dia, rolamos até ela para o usuário perceber os conteúdos.
+  const previaRef = useRef<HTMLElement | null>(null);
+
+  function selecionarDia(key: string) {
+    setDiaSel(key);
+    // Só rola no layout empilhado (mobile). No desktop a prévia já fica à vista.
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 1023px)").matches
+    ) {
+      // Espera o painel renderizar a lista antes de rolar.
+      requestAnimationFrame(() => {
+        previaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    }
+  }
 
   // Agrupa os cards por dia (só os que têm data). Memo por lista de cards.
   const porDia = useMemo(() => {
@@ -141,7 +158,7 @@ export function CalendarView({
                 key={key}
                 type="button"
                 disabled={!temConteudo}
-                onClick={() => setDiaSel(key)}
+                onClick={() => selecionarDia(key)}
                 aria-label={`Dia ${dia}${temConteudo ? `, ${qtd} conteúdo(s)` : ", sem conteúdo"}`}
                 aria-pressed={selecionado}
                 className={[
@@ -183,7 +200,7 @@ export function CalendarView({
       </div>
 
       {/* Prévia do dia selecionado */}
-      <aside className="min-w-0">
+      <aside ref={previaRef} className="min-w-0 scroll-mt-4">
         {!diaSel ? (
           <div className="flex h-full min-h-40 flex-col items-center justify-center rounded-lg border border-dashed bg-muted/20 px-4 py-10 text-center">
             <CalendarDays className="mb-2 size-6 text-muted-foreground" />
