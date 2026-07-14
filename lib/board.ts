@@ -84,6 +84,26 @@ export function podeSolicitarAlteracao(
   return STATUS_SOLICITAVEIS.includes(status ?? "");
 }
 
+// Status INTERNO (fora do quadro) da etapa de ajuste de arte/edicao no Notion.
+// Quando o cliente pede alteracao na etapa "Edição/arte finalizada", o card vai
+// para ca — uma movimentacao interna para a equipe, que nao aparece como coluna.
+export const STATUS_AJUSTE_ARTE = "Ajuste Arte/Edição";
+
+// Prefixo aplicado ao titulo ao mandar o card para "Ajuste Arte/Edição", para
+// sinalizar o pedido de alteracao a equipe de arte/edicao.
+export const PREFIXO_AJUSTE = "[AJUSTAR]";
+
+// Para onde o card vai quando o cliente solicita alteracao a partir de `status`:
+//   - etapa de arte finalizada (aprovar-arte) => "Ajuste Arte/Edição" (interna)
+//   - demais etapas solicitaveis ("Conteúdo aprovado") => "Conteúdo aprovado"
+export function destinoAposSolicitacao(
+  status: string | null | undefined
+): string {
+  return modoDoStatus(status) === "aprovar-arte"
+    ? STATUS_AJUSTE_ARTE
+    : "Conteúdo aprovado";
+}
+
 // Etapa "interna": qualquer status fora das colunas do quadro. Esses conteudos
 // existem para o cliente no calendario (previa), mas nao abrem como card.
 export function etapaInterna(status: string | null | undefined): boolean {

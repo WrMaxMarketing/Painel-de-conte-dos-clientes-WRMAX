@@ -1,5 +1,10 @@
 import { Client } from "@notionhq/client";
-import { BOARD_STATUSES } from "@/lib/board";
+import {
+  BOARD_STATUSES,
+  STATUS_AJUSTE_ARTE,
+  PREFIXO_AJUSTE,
+  destinoAposSolicitacao,
+} from "@/lib/board";
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN });
 const DB = process.env.NOTION_DB_CONTEUDO!;
@@ -209,21 +214,45 @@ export async function getCardWrite(pageId: string): Promise<CardWrite> {
 }
 
 // Registra a solicitacao de alteracao do cliente: incrementa a contagem de
-// ajustes, carimba a data (badge de 24h) e devolve o card 1 etapa, para
-// "Conteúdo aprovado". `agora` = ISO da solicitacao.
+// ajustes, carimba a data (badge de 24h) e move o card conforme a etapa de
+// origem (`statusAtual`):
+//   - da etapa "Edição/arte finalizada" => "Ajuste Arte/Edição" (etapa interna,
+//     fora do quadro) e prefixa o titulo com "[AJUSTAR]" (uma vez);
+//   - das demais etapas => devolve para "Conteúdo aprovado".
+// `agora` = ISO da solicitacao.
 export async function registrarSolicitacaoAlteracao(
   pageId: string,
   ajustesAtuais: number,
-  agora: string
+  agora: string,
+  statusAtual: string | null
 ) {
-  await notion.pages.update({
-    page_id: pageId,
-    properties: {
-      [PROP_STATUS]: { status: { name: "Conteúdo aprovado" } },
-      [PROP_AJUSTES]: { number: ajustesAtuais + 1 },
-      [PROP_SOLICITACAO]: { date: { start: agora } },
-    },
-  } as any);
+  const destino = destinoAposSolicitacao(statusAtual);
+  const properties: any = {
+    [PROP_STATUS]: { status: { name: destino } },
+    [PROP_AJUSTES]: { number: ajustesAtuais + 1 },
+    [PROP_SOLICITACAO]: { date: { start: agora } },
+  };
+
+  // Ao ir para a etapa interna de ajuste, prefixa o titulo com "[AJUSTAR]".
+  // Descobre a propriedade de titulo dinamicamente (como em reprovarCard) e
+  // guarda contra duplicar o prefixo.
+  if (destino === STATUS_AJUSTE_ARTE) {
+    const page: any = await notion.pages.retrieve({ page_id: pageId });
+    const entry = Object.entries(page.properties).find(
+      ([, p]: any) => p.type === "title"
+    );
+    if (entry) {
+      const [tituloProp, prop]: any = entry;
+      const atual = prop.title?.map((t: any) => t.plain_text).join("") ?? "";
+      if (!atual.startsWith(PREFIXO_AJUSTE)) {
+        properties[tituloProp] = {
+          title: [{ text: { content: `${PREFIXO_AJUSTE} ${atual}` } }],
+        };
+      }
+    }
+  }
+
+  await notion.pages.update({ page_id: pageId, properties } as any);
 }
 
 // Sobrescreve a propriedade de arquivos com o array ja montado.

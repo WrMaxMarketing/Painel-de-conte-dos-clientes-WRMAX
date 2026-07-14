@@ -16,8 +16,10 @@ import { enviarWhatsApp } from "@/lib/whatsapp";
 // Solicitacao de alteracao na etapa "Concluido Designer/Arte": texto livre +
 // (opcional) quantas imagens e/ou videos quiser, cada um com uma descricao
 // ("onde e e o que fazer"). Cada pedido vira COMENTARIO(s) no card do Notion,
-// notifica a equipe por WhatsApp, incrementa o Nº de Ajustes e devolve o card
-// para "Conteúdo aprovado". So permitido nessa etapa e para o cliente dono do card.
+// notifica a equipe por WhatsApp, incrementa o Nº de Ajustes e move o card:
+// da etapa de arte finalizada para "Ajuste Arte/Edição" (interna, titulo
+// prefixado "[AJUSTAR]"); das demais etapas, para "Conteúdo aprovado".
+// So permitido nas etapas solicitaveis e para o cliente dono do card.
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (upload de parte unica do Notion)
 const MAX_ANEXOS_POR_COMENTARIO = 3; // limite da API de comentarios do Notion
 
@@ -187,11 +189,14 @@ export async function POST(req: Request) {
       .join("\n");
     await enviarWhatsApp(corpo);
 
-    // Registra (Nº de Ajustes +1 + data) e devolve o card 1 etapa.
+    // Registra (Nº de Ajustes +1 + data) e move o card conforme a etapa de
+    // origem: "Edição/arte finalizada" => "Ajuste Arte/Edição" (interna, com
+    // titulo prefixado "[AJUSTAR]"); demais => "Conteúdo aprovado".
     await registrarSolicitacaoAlteracao(
       pageId,
       card.ajustes,
-      new Date().toISOString()
+      new Date().toISOString(),
+      card.status
     );
 
     revalidatePath("/");
