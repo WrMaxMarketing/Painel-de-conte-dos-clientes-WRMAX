@@ -84,6 +84,15 @@ export function podeSolicitarAlteracao(
   return STATUS_SOLICITAVEIS.includes(status ?? "");
 }
 
+// Alteracoes incluidas no pacote do cliente. Acima disso o pedido ainda e
+// aceito, mas vira taxa extra (regra comercial — nao bloqueia o envio).
+export const MAX_ALTERACOES = 2;
+
+// Quantas alteracoes ainda cabem no limite (nunca negativo).
+export function alteracoesRestantes(ajustes: number): number {
+  return Math.max(0, MAX_ALTERACOES - ajustes);
+}
+
 // Status INTERNO (fora do quadro) da etapa de ajuste de arte/edicao no Notion.
 // Quando o cliente pede alteracao na etapa "Edição/arte finalizada", o card vai
 // para ca — uma movimentacao interna para a equipe, que nao aparece como coluna.
