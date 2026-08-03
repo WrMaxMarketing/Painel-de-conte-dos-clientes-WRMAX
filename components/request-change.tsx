@@ -17,6 +17,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Notice } from "@/components/ui/notice";
 import {
+  MAX_ALTERACOES,
+  alteracoesRestantes,
+  modoDoStatus,
+} from "@/lib/board";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogContent,
@@ -29,8 +34,8 @@ import {
 
 // Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
 // Ao enviar: cria um comentário no card do Notion (texto + imagens/vídeos com
-// descrição), notifica a equipe por WhatsApp, registra a alteração (Nº de
-// Ajustes +1) e devolve o card para "Conteúdo aprovado".
+// descrição), registra a alteração (Nº de Ajustes +1) e devolve o card para
+// "Conteúdo aprovado". A equipe acompanha os pedidos pelo próprio Notion.
 type AnexoItem = {
   id: number;
   file: File;
@@ -48,15 +53,22 @@ const ACCEPT = "image/*,video/*";
 export function RequestChange({
   pageId,
   ajustes,
+  status,
   onDone,
   onCancel,
 }: {
   pageId: string;
   ajustes: number;
+  // Etapa em que o pedido esta sendo feito — define o aviso de revisao.
+  status?: string | null;
   onDone?: () => void;
   onCancel?: () => void;
 }) {
   const router = useRouter();
+  const restantes = alteracoesRestantes(ajustes);
+  // Na "Edição/arte finalizada" o conteudo ja esta pronto: vale reforcar que o
+  // cliente revise tudo antes de mandar, porque as alteracoes sao limitadas.
+  const arteFinalizada = modoDoStatus(status) === "aprovar-arte";
   const [texto, setTexto] = useState("");
   const [anexos, setAnexos] = useState<AnexoItem[]>([]);
   const [enviando, setEnviando] = useState(false);
@@ -181,10 +193,35 @@ export function RequestChange({
         </p>
       </div>
 
-      <Notice tone="warning">
-        Atenção: são aceitas apenas <strong>2 alterações</strong>. Alterações
-        adicionais serão cobradas como taxa extra.
+      {/* Quantas alterações ainda cabem no pacote (são {MAX_ALTERACOES}). */}
+      <Notice tone={restantes === 0 ? "destructive" : "warning"}>
+        {restantes > 0 ? (
+          <>
+            Atenção:{" "}
+            <strong>
+              {restantes}{" "}
+              {restantes === 1 ? "alteração restante" : "alterações restantes"}
+            </strong>{" "}
+            neste conteúdo (são aceitas {MAX_ALTERACOES} alterações). Alterações
+            adicionais serão cobradas como taxa extra.
+          </>
+        ) : (
+          <>
+            Atenção: <strong>nenhuma alteração restante</strong> — as{" "}
+            {MAX_ALTERACOES} alterações já foram utilizadas. Esta e as próximas
+            serão cobradas como taxa extra.
+          </>
+        )}
       </Notice>
+
+      {/* Reforço de revisão na etapa em que a arte/edição já está pronta. */}
+      {arteFinalizada && (
+        <Notice tone="info">
+          Ao solicitar uma nova alteração, reveja novamente o conteúdo para ter
+          certeza de que <strong>tudo</strong> o que você deseja alterar será
+          descrito e apresentado nesta solicitação.
+        </Notice>
+      )}
 
       {ajustes > 0 && (
         <p className="text-xs text-muted-foreground">

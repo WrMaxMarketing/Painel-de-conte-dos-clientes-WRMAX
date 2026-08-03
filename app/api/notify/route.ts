@@ -1,17 +1,24 @@
 import { NextResponse } from "next/server";
 import { getCardWrite } from "@/lib/notion";
-import { enviarWhatsApp, numeroDoCliente } from "@/lib/whatsapp";
+import { numeroDoCliente } from "@/lib/whatsapp";
+// Envio desativado — ver bloco comentado no fim do handler.
+// import { enviarWhatsApp } from "@/lib/whatsapp";
 import { STATUS_NOTIFICAVEIS } from "@/lib/board";
 
 // Webhook chamado por uma automação do Notion ("quando Status = X, enviar
-// webhook"). Notifica o cliente por WhatsApp que ha conteudo para aprovar.
+// webhook"). Notificaria o cliente por WhatsApp que ha conteudo para aprovar.
 // Protegido por segredo (?secret= na URL ou header x-webhook-secret).
+//
+// AVISO POR WHATSAPP DESATIVADO: a rota continua validando o segredo, o card,
+// a etapa e o numero do cliente, e responde 200 para nao acumular erros na
+// automacao do Notion — mas nao dispara mensagem. Para reativar, descomentar
+// o import de `enviarWhatsApp`, a const SITE_URL e o bloco no fim do handler.
 //
 // Config por env:
 //   NOTIFY_WEBHOOK_SECRET  segredo que o Notion envia
 //   SITE_URL               link do painel (default abaixo)
 
-const SITE_URL = process.env.SITE_URL ?? "https://painel.wrmaxmarketing.com.br/";
+// const SITE_URL = process.env.SITE_URL ?? "https://painel.wrmaxmarketing.com.br/";
 
 // Tenta achar o id da pagina em formatos comuns de payload de webhook.
 function extrairPageId(body: unknown): string | null {
@@ -70,18 +77,22 @@ export async function POST(req: Request) {
     });
   }
 
-  const texto = [
-    "Você tem novos conteúdos para aprovar:",
-    `*${card.titulo}*`,
-    "",
-    `Acesse o painel: ${SITE_URL}`,
-  ].join("\n");
+  // Envio por WhatsApp DESATIVADO (ver aviso no topo do arquivo). Tudo acima
+  // continua valendo como validacao; aqui apenas confirmamos o recebimento.
+  return NextResponse.json({ ok: true, skipped: "notificação desativada" });
 
-  try {
-    await enviarWhatsApp(texto, numero);
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Falha no envio.";
-    return NextResponse.json({ error: msg }, { status: 500 });
-  }
+  // const texto = [
+  //   "Você tem novos conteúdos para aprovar:",
+  //   `*${card.titulo}*`,
+  //   "",
+  //   `Acesse o painel: ${SITE_URL}`,
+  // ].join("\n");
+  //
+  // try {
+  //   await enviarWhatsApp(texto, numero);
+  //   return NextResponse.json({ ok: true });
+  // } catch (e) {
+  //   const msg = e instanceof Error ? e.message : "Falha no envio.";
+  //   return NextResponse.json({ error: msg }, { status: 500 });
+  // }
 }

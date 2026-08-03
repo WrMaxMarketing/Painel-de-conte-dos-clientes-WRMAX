@@ -453,6 +453,7 @@ export function ApprovalBoard({
                   <RequestChange
                     pageId={selected.id}
                     ajustes={selected.ajustes}
+                    status={selected.status}
                     onDone={() => {
                       setEditando(false);
                       voltar();
