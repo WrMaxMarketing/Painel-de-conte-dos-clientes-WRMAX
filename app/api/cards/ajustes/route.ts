@@ -11,14 +11,16 @@ import {
   AJUSTE_SENTINEL,
 } from "@/lib/notion";
 import { labelDoStatus, podeSolicitarAlteracao } from "@/lib/board";
-import { enviarWhatsApp } from "@/lib/whatsapp";
+// Aviso por WhatsApp desativado — ver bloco comentado no passo 4.
+// import { enviarWhatsApp } from "@/lib/whatsapp";
 
 // Solicitacao de alteracao na etapa "Concluido Designer/Arte": texto livre +
 // (opcional) quantas imagens e/ou videos quiser, cada um com uma descricao
 // ("onde e e o que fazer"). Cada pedido vira COMENTARIO(s) no card do Notion,
-// notifica a equipe por WhatsApp, incrementa o Nº de Ajustes e move o card:
+// incrementa o Nº de Ajustes e move o card:
 // da etapa de arte finalizada para "Ajuste Arte/Edição" (interna, titulo
 // prefixado "[AJUSTAR]"); das demais etapas, para "Conteúdo aprovado".
+// A equipe acompanha os pedidos pelo proprio Notion.
 // So permitido nas etapas solicitaveis e para o cliente dono do card.
 const MAX_BYTES = 20 * 1024 * 1024; // 20 MB (upload de parte unica do Notion)
 const MAX_ANEXOS_POR_COMENTARIO = 3; // limite da API de comentarios do Notion
@@ -98,12 +100,14 @@ export async function POST(req: Request) {
 
     // Numeracao SEQUENCIAL global (1, 2, 3, 4…) — a mesma referencia usada nos
     // comentarios e no resumo do corpo. A palavra reflete o tipo.
-    let nImg = 0;
-    let nVid = 0;
+    // Os contadores por tipo (nImg/nVid) so alimentavam o aviso de WhatsApp,
+    // hoje desativado — ver bloco comentado no passo 4.
+    // let nImg = 0;
+    // let nVid = 0;
     const rotulos = anexos.map((a, i) => {
       const n = i + 1;
-      if (a.kind === "video") nVid++;
-      else nImg++;
+      // if (a.kind === "video") nVid++;
+      // else nImg++;
       const sufixo = a.descricao ? `: ${a.descricao}` : "";
       return a.kind === "video"
         ? `🎬 Vídeo ${n}${sufixo}`
@@ -168,26 +172,34 @@ export async function POST(req: Request) {
       );
     await anexarSolicitacaoNoCorpo(pageId, header, texto, referencias);
 
-    // Resumo dos anexos para o aviso (ex.: "2 imagens e 1 vídeo").
-    const partesResumo: string[] = [];
-    if (nImg) partesResumo.push(`${nImg} ${nImg === 1 ? "imagem" : "imagens"}`);
-    if (nVid) partesResumo.push(`${nVid} ${nVid === 1 ? "vídeo" : "vídeos"}`);
-    const resumoAnexos = partesResumo.join(" e ");
-
-    // Notifica a equipe (os anexos nao vao pelo WhatsApp; apenas o aviso).
-    const corpo = [
-      "🔔 *Solicitação de alteração*",
-      `Cliente: ${cliente || "(sem cliente)"}`,
-      `Conteúdo: ${card.titulo}`,
-      `Etapa: ${etapa}`,
-      "",
-      texto,
-      anexos.length ? `📎 ${resumoAnexos} em anexo (ver no painel/Notion).` : "",
-      card.url ? `🔗 ${card.url}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-    await enviarWhatsApp(corpo);
+    // 4) Aviso a equipe por WhatsApp — DESATIVADO. A instancia da Evolution API
+    // ficava fora do ar e derrubava a solicitacao inteira (HTTP 500) DEPOIS de
+    // os comentarios/anexos ja terem sido gravados no Notion, fazendo o cliente
+    // reenviar e duplicar tudo. A equipe acompanha os pedidos pelo Notion.
+    // Para reativar: descomentar este bloco, o import de `enviarWhatsApp` e os
+    // contadores nImg/nVid acima — e, de preferencia, envolver o envio em um
+    // try/catch proprio para que a falha do aviso nao invalide a solicitacao.
+    //
+    // // Resumo dos anexos para o aviso (ex.: "2 imagens e 1 vídeo").
+    // const partesResumo: string[] = [];
+    // if (nImg) partesResumo.push(`${nImg} ${nImg === 1 ? "imagem" : "imagens"}`);
+    // if (nVid) partesResumo.push(`${nVid} ${nVid === 1 ? "vídeo" : "vídeos"}`);
+    // const resumoAnexos = partesResumo.join(" e ");
+    //
+    // // Notifica a equipe (os anexos nao vao pelo WhatsApp; apenas o aviso).
+    // const corpo = [
+    //   "🔔 *Solicitação de alteração*",
+    //   `Cliente: ${cliente || "(sem cliente)"}`,
+    //   `Conteúdo: ${card.titulo}`,
+    //   `Etapa: ${etapa}`,
+    //   "",
+    //   texto,
+    //   anexos.length ? `📎 ${resumoAnexos} em anexo (ver no painel/Notion).` : "",
+    //   card.url ? `🔗 ${card.url}` : "",
+    // ]
+    //   .filter(Boolean)
+    //   .join("\n");
+    // await enviarWhatsApp(corpo);
 
     // Registra (Nº de Ajustes +1 + data) e move o card conforme a etapa de
     // origem: "Edição/arte finalizada" => "Ajuste Arte/Edição" (interna, com

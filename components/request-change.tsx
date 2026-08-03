@@ -34,8 +34,8 @@ import {
 
 // Campo de "solicitar alteração" exibido na etapa "Edição/arte finalizada".
 // Ao enviar: cria um comentário no card do Notion (texto + imagens/vídeos com
-// descrição), notifica a equipe por WhatsApp, registra a alteração (Nº de
-// Ajustes +1) e devolve o card para "Conteúdo aprovado".
+// descrição), registra a alteração (Nº de Ajustes +1) e devolve o card para
+// "Conteúdo aprovado". A equipe acompanha os pedidos pelo próprio Notion.
 type AnexoItem = {
   id: number;
   file: File;
