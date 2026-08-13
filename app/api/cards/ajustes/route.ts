@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       );
     }
   }
-
+// teste
   // Checagem de dono + etapa (estado fresco do Notion).
   const card = await getCardWrite(pageId);
   if (card.cliente !== cliente) {
